@@ -1,0 +1,31 @@
+{
+  "artifact": "docs/tasks/t2_1_llm_review.csv",
+  "unit_count": 100,
+  "source_snapshot_id": "video_games-pilot-9e665a862c1a",
+  "source_cutoff": "T0",
+  "split_role": "development_pilot",
+  "label_status": "ai_preliminary_with_human_review_pending",
+  "manual_label_usage": "held_out_evaluation_only",
+  "manual_labels_in_model_training": false,
+  "manual_labels_in_recommendation_training": false,
+  "manual_labels_in_aspect_sentiment_training": false,
+  "development_subset_can_refine_guideline_prompt_settings": true,
+  "final_test_subset": false,
+  "final_test_frozen": false,
+  "gold_status": false,
+  "test_eligible": false,
+  "recommendation_test": false,
+  "allowed_uses": [
+    "refine_aspect_guideline",
+    "refine_llm_prompt",
+    "review_model_errors",
+    "prepare_candidate_gold_labels"
+  ],
+  "prohibited_uses": [
+    "final_nlp_test_score",
+    "recommendation_test_features",
+    "claim_human_agreement",
+    "claim_final_model_accuracy"
+  ],
+  "reason": "These manually reviewed units are held out from model fitting and are a development/pilot subset only; a separate frozen manual final test subset must be created later."
+}

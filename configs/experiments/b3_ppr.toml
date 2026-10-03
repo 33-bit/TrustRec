@@ -1,0 +1,5 @@
+model_id = "b3_ppr"
+module = "graph.personalized_pagerank"
+metric_protocol = "global-temporal-v1"
+damping = 0.85
+

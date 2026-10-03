@@ -1,0 +1,19 @@
+[bpr_mf]
+embedding_dimensions = [32, 64]
+learning_rate = [0.001, 0.01]
+regularization = [0.0001, 0.001]
+
+[pagerank]
+damping = [0.70, 0.85, 0.95]
+positive_rating_threshold = 4
+
+[evidence]
+shrinkage_lambda = [2, 5, 10]
+recency_half_life_days = [0, 180, 365]
+duplicate_penalty = "inverse_group_size"
+
+[gate]
+kappa = [2, 5, 10]
+g_max = [0.25, 0.50, 0.75]
+rho = [0.25, 0.50, 0.75]
+

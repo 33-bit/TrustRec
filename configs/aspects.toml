@@ -1,0 +1,39 @@
+[ontology.gameplay]
+definition = "Cơ chế chơi, nhịp độ, độ cuốn hút và cảm giác chơi."
+
+[ontology.story]
+definition = "Cốt truyện, nhân vật, hội thoại và cách kể chuyện."
+
+[ontology.graphics]
+definition = "Hình ảnh, phong cách thị giác, animation và chất lượng trình bày."
+
+[ontology.performance]
+definition = "Tốc độ, lỗi, crash, lag, độ ổn định và yêu cầu phần cứng."
+
+[ontology.controls]
+definition = "Điều khiển, thao tác, input mapping và độ phản hồi."
+
+[ontology.multiplayer]
+definition = "Chơi online/local cùng người khác, matchmaking và cộng đồng trong game."
+
+[ontology.content_replay]
+definition = "Lượng nội dung, độ dài, endgame và giá trị chơi lại."
+
+[ontology.value]
+definition = "Mức đáng tiền hoặc đáng với thời gian bỏ ra; không đồng nhất với giá thấp."
+
+[labeling]
+unit = "sentence_or_clause"
+sentiments = ["positive", "negative", "neutral"]
+allow_out_of_scope = true
+duplicate_group_must_share_split = true
+
+[manual_data_usage]
+source = "Amazon Reviews 2023 by McAuley Lab"
+usage = "held_out_evaluation"
+manual_labels_in_model_training = false
+manual_labels_in_recommendation_training = false
+manual_labels_in_aspect_sentiment_training = false
+development_subset_can_refine_guideline_prompt_settings = true
+final_test_subset_frozen = true
+manual_label_entire_corpus = false

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trustrec.local/schemas/annotation-record.schema.json",
+  "title": "TrustRec annotation record",
+  "type": "object",
+  "required": ["unit_id", "review_id", "text", "labels", "out_of_scope", "needs_adjudication", "provenance"],
+  "properties": {
+    "unit_id": {"type": "string"},
+    "review_id": {"type": "string"},
+    "text": {"type": "string"},
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["aspect", "polarity", "start", "end", "evidence"],
+        "properties": {
+          "aspect": {"enum": ["gameplay", "story", "graphics", "performance", "controls", "multiplayer", "content_replay", "value"]},
+          "polarity": {"enum": ["positive", "negative", "neutral"]},
+          "start": {"type": "integer", "minimum": 0},
+          "end": {"type": "integer", "minimum": 1},
+          "evidence": {"type": "string"}
+        }
+      }
+    },
+    "out_of_scope": {"type": "boolean"},
+    "needs_adjudication": {"type": "boolean"},
+    "provenance": {"type": "object"}
+  },
+  "additionalProperties": true
+}
+

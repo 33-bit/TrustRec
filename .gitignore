@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Data and generated artifacts
+data/raw/*
+data/interim/*
+data/processed/*
+data/manifests/*
+!data/**/.gitkeep
+artifacts/
+!artifacts/README.md
+models/
+reports/generated/
+reports/tables/*
+reports/figures/*
+!reports/README.md
+
+# Notebooks and OS files
+.ipynb_checkpoints/
+.DS_Store

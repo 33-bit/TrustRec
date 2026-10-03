@@ -1,0 +1,5 @@
+model_id = "b0_most_popular"
+module = "recommenders.popularity"
+metric_protocol = "global-temporal-v1"
+tuning_budget = "none"
+

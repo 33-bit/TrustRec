@@ -1,0 +1,5 @@
+models = ["a1_no_graph", "a2_no_aspect", "a3_unweighted_evidence", "a4_fixed_gate"]
+shared_candidate_set = true
+shared_tuning_budget = true
+metric_protocol = "global-temporal-v1"
+

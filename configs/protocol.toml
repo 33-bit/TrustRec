@@ -1,0 +1,27 @@
+[project]
+name = "TrustRec"
+language = "vi-VN"
+python = ">=3.11"
+
+[data]
+preferred_domain = "Video Games"
+domain_status = "pilot_primary_entity_filter_pending"
+review_positive_threshold = 4
+candidate_rule = "known_items_before_cutoff_minus_user_history"
+raw_data_policy = "external_with_checksum"
+
+[snapshots]
+train_fraction = 0.80
+validation_fraction = 0.10
+test_fraction = 0.10
+cutoff_policy = "global_timestamp"
+
+[evaluation]
+primary_metric = "ndcg@10"
+ks = [5, 10, 20]
+seeds = [7, 17, 27]
+bootstrap_samples = 2000
+
+[explanations]
+minimum_distinct_authors = 5
+score_scale = "percentile_within_candidate_set"

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trustrec.local/schemas/trustrec-artifacts.schema.json",
+  "title": "TrustRec artifact manifest",
+  "type": "object",
+  "required": ["schema_version", "snapshot_id", "dataset_hash", "row_counts", "cutoffs"],
+  "properties": {
+    "schema_version": {"type": "integer", "minimum": 1},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "dataset_hash": {"type": "string", "minLength": 8},
+    "cutoffs": {
+      "type": "object",
+      "required": ["t0", "t1"],
+      "properties": {
+        "t0": {"type": "string", "format": "date-time"},
+        "t1": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": true
+    },
+    "row_counts": {
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "artifact_sha256": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 8}
+    }
+  },
+  "additionalProperties": true
+}
+

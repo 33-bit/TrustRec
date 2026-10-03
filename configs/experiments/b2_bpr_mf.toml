@@ -1,0 +1,8 @@
+model_id = "b2_bpr_mf"
+module = "recommenders.bpr_mf"
+metric_protocol = "global-temporal-v1"
+embedding_dimensions = 64
+learning_rate = 0.001
+regularization = 0.0001
+seed = 7
+

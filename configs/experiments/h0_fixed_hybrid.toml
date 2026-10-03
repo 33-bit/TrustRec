@@ -1,0 +1,7 @@
+model_id = "h0_fixed_hybrid"
+module = "recommenders.fixed_hybrid"
+metric_protocol = "global-temporal-v1"
+mf_weight = 0.5
+graph_weight = 0.25
+aspect_weight = 0.25
+

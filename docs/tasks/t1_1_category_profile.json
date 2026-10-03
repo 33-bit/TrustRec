@@ -1,0 +1,290 @@
+{
+  "generated_at": "2026-10-01T18:13:31.580609+00:00",
+  "window_bytes": 16777216,
+  "categories": [
+    {
+      "category": "Video_Games",
+      "profile_type": "three-byte-window-pilot",
+      "review_source": {
+        "source_url": "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main/raw/review_categories/Video_Games.jsonl",
+        "source_bytes": 2682948518,
+        "window_bytes": 16777216,
+        "window_count": 3,
+        "window_starts": [
+          0,
+          1341474259,
+          2666171302
+        ],
+        "sample_sha256": "e3d173845748124ecc5d75b70b9419158c2c196703f46951412e6adcee7c58b5"
+      },
+      "metadata_source": {
+        "source_url": "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main/raw/meta_categories/meta_Video_Games.jsonl",
+        "source_bytes": 437375785,
+        "window_bytes": 16777216,
+        "window_count": 3,
+        "window_starts": [
+          0,
+          218687892,
+          420598569
+        ],
+        "sample_sha256": "2ed7ac21d11ac9fc4f304595046a57b9d19dfdd90e712cc2ae351f8b422b1e95"
+      },
+      "reviews": {
+        "rows_sampled": 84957,
+        "unique_users_sampled": 52652,
+        "unique_items_sampled": 26831,
+        "missingness": {
+          "rating": 0.0,
+          "title": 0.0,
+          "text": 0.001142,
+          "parent_asin": 0.0,
+          "user_id": 0.0,
+          "timestamp": 0.0
+        },
+        "rating_distribution": {
+          "1.0": 11732,
+          "2.0": 4754,
+          "3.0": 6318,
+          "4.0": 11533,
+          "5.0": 50620
+        },
+        "timestamp_range": {
+          "min": "1999-11-12T22:33:03+00:00",
+          "max": "2023-09-12T09:02:35.529000+00:00"
+        },
+        "review_text_chars": {
+          "non_empty_rows": 84860,
+          "mean": 312.16,
+          "median": 135.0
+        },
+        "retention": {
+          "cutoff_t0": "2021-06-05T04:46:00.522000+00:00",
+          "cutoff_t1": "2022-07-28T19:42:53.711000+00:00",
+          "validation": {
+            "users_with_history": 42427,
+            "eligible_users": 2473,
+            "eligible_fraction_of_history_users": 0.058288,
+            "unique_target_user_item_pairs": 2827,
+            "known_items_at_cutoff": 21279,
+            "history_groups": {
+              "1-2": 39958,
+              "3-5": 3347,
+              ">5": 1035
+            }
+          },
+          "test": {
+            "users_with_history": 47650,
+            "eligible_users": 2412,
+            "eligible_fraction_of_history_users": 0.050619,
+            "unique_target_user_item_pairs": 2801,
+            "known_items_at_cutoff": 24010,
+            "history_groups": {
+              "1-2": 44704,
+              "3-5": 3736,
+              ">5": 1162
+            }
+          }
+        }
+      },
+      "metadata": {
+        "rows_sampled": 16238,
+        "unique_items_sampled": 16238,
+        "missingness": {
+          "parent_asin": 0.0,
+          "main_category": 0.221394,
+          "title": 6.2e-05,
+          "description": 0.378926,
+          "features": 0.291107,
+          "price": 0.550129,
+          "brand": 1.0,
+          "images": 0.001663,
+          "details": 0.0
+        },
+        "main_category_top": [
+          [
+            "Video Games",
+            8057
+          ],
+          [
+            "Computers",
+            1744
+          ],
+          [
+            "All Electronics",
+            1452
+          ],
+          [
+            "Cell Phones & Accessories",
+            369
+          ],
+          [
+            "Toys & Games",
+            359
+          ],
+          [
+            "Software",
+            151
+          ],
+          [
+            "Industrial & Scientific",
+            111
+          ],
+          [
+            "Amazon Home",
+            68
+          ],
+          [
+            "Tools & Home Improvement",
+            54
+          ],
+          [
+            "Home Audio & Theater",
+            52
+          ]
+        ]
+      }
+    },
+    {
+      "category": "Electronics",
+      "profile_type": "three-byte-window-pilot",
+      "review_source": {
+        "source_url": "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main/raw/review_categories/Electronics.jsonl",
+        "source_bytes": 22616233652,
+        "window_bytes": 16777216,
+        "window_count": 3,
+        "window_starts": [
+          0,
+          11308116826,
+          22599456436
+        ],
+        "sample_sha256": "17316faf045036a0e15d1b0695eee9fb1eb4121b2198c0bfde211897d837a512"
+      },
+      "metadata_source": {
+        "source_url": "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main/raw/meta_categories/meta_Electronics.jsonl",
+        "source_bytes": 5246144134,
+        "window_bytes": 16777216,
+        "window_count": 3,
+        "window_starts": [
+          0,
+          2623072067,
+          5229366918
+        ],
+        "sample_sha256": "9c24e8f7973874e4018c94a6ca3156770221e701bb6dcb51e88597a13bb949cc"
+      },
+      "reviews": {
+        "rows_sampled": 89681,
+        "unique_users_sampled": 40601,
+        "unique_items_sampled": 51396,
+        "missingness": {
+          "rating": 0.0,
+          "title": 0.0,
+          "text": 0.001215,
+          "parent_asin": 0.0,
+          "user_id": 0.0,
+          "timestamp": 0.0
+        },
+        "rating_distribution": {
+          "1.0": 11616,
+          "2.0": 4360,
+          "3.0": 5714,
+          "4.0": 11563,
+          "5.0": 56428
+        },
+        "timestamp_range": {
+          "min": "2000-03-22T23:31:01+00:00",
+          "max": "2023-09-13T15:56:34.533000+00:00"
+        },
+        "review_text_chars": {
+          "non_empty_rows": 89572,
+          "mean": 275.88,
+          "median": 125.0
+        },
+        "retention": {
+          "cutoff_t0": "2021-08-23T15:16:59.516000+00:00",
+          "cutoff_t1": "2022-08-01T15:06:56.301000+00:00",
+          "validation": {
+            "users_with_history": 33300,
+            "eligible_users": 1804,
+            "eligible_fraction_of_history_users": 0.054174,
+            "unique_target_user_item_pairs": 2125,
+            "known_items_at_cutoff": 41454,
+            "history_groups": {
+              "1-2": 29017,
+              ">5": 1853,
+              "3-5": 3404
+            }
+          },
+          "test": {
+            "users_with_history": 36454,
+            "eligible_users": 1748,
+            "eligible_fraction_of_history_users": 0.047951,
+            "unique_target_user_item_pairs": 2000,
+            "known_items_at_cutoff": 46580,
+            "history_groups": {
+              "3-5": 3812,
+              "1-2": 31660,
+              ">5": 2103
+            }
+          }
+        }
+      },
+      "metadata": {
+        "rows_sampled": 15608,
+        "unique_items_sampled": 15608,
+        "missingness": {
+          "parent_asin": 0.0,
+          "main_category": 0.189006,
+          "title": 6.4e-05,
+          "description": 0.409277,
+          "features": 0.25205,
+          "price": 0.669464,
+          "brand": 1.0,
+          "images": 0.000256,
+          "details": 0.0
+        },
+        "main_category_top": [
+          [
+            "Computers",
+            3257
+          ],
+          [
+            "All Electronics",
+            2910
+          ],
+          [
+            "Camera & Photo",
+            2183
+          ],
+          [
+            "Cell Phones & Accessories",
+            1121
+          ],
+          [
+            "Home Audio & Theater",
+            988
+          ],
+          [
+            "Industrial & Scientific",
+            430
+          ],
+          [
+            "Car Electronics",
+            301
+          ],
+          [
+            "Tools & Home Improvement",
+            261
+          ],
+          [
+            "Office Products",
+            204
+          ],
+          [
+            "Amazon Home",
+            177
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+model_id = "t0_trustrec"
+module = "recommenders.trustrec"
+metric_protocol = "global-temporal-v1"
+kappa = 5
+g_max = 0.5
+rho = 0.5
+shrinkage_lambda = 5
+

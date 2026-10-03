@@ -1,0 +1,26 @@
+[source]
+dataset = "Amazon Reviews 2023"
+provider = "McAuley Lab"
+manual_label_scope = "sampled_sentence_or_clause_units"
+manual_label_entire_corpus = false
+
+[usage]
+manual_labels_are_held_out = true
+manual_labels_in_model_training = false
+recommendation_interactions_from_source = true
+aspect_sentiment_training_uses_manual_labels = false
+
+[development_subset]
+optional = true
+allowed_uses = ["refine_guideline", "refine_prompt", "select_model_settings", "debug_errors"]
+final_test_eligible = false
+
+[final_test_subset]
+frozen_before_tuning = true
+allowed_uses = ["final_aspect_evaluation", "final_sentiment_evaluation", "final_explanation_audit"]
+tuning_allowed = false
+prompt_selection_allowed = false
+
+[annotation]
+minimum_double_annotation_fraction = 0.20
+split_group_keys = ["parent_asin", "duplicate_group"]

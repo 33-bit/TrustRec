@@ -1,0 +1,21 @@
+[protocol]
+name = "global-temporal-v1"
+primary_metric = "ndcg@10"
+ks = [5, 10, 20]
+positive_target_rating = 4
+
+[slices]
+user_history = ["1-2", "3-5", ">5"]
+item_support = ["low", "high"]
+popularity = ["low", "medium", "high"]
+
+[uncertainty]
+seeds = [7, 17, 27]
+bootstrap = "paired_user_bootstrap"
+bootstrap_samples = 2000
+confidence_level = 0.95
+
+[explanations]
+audit_recommendations = 100
+max_claims = 200
+

@@ -1,0 +1,18 @@
+[source]
+dataset = "Amazon Reviews 2023"
+category = "Video_Games"
+review_url = "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main/raw/review_categories/Video_Games.jsonl"
+metadata_url = "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main/raw/meta_categories/meta_Video_Games.jsonl"
+retrieval_policy = "range_or_sequential_scan_with_source_hash"
+
+[subset]
+window_bytes = 33554432
+max_reviews = 200000
+metadata_mode = "full"
+entity_scope = "software_games_only_after_metadata_join"
+
+[cutoffs]
+policy = "global_timestamp_quantiles"
+train_quantile = 0.80
+test_quantile = 0.90
+

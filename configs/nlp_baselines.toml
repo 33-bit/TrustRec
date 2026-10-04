@@ -1,0 +1,16 @@
+[run]
+protocol_version = "nlp-baseline-v1"
+seed = 7
+calibration_folds = 3
+
+[model]
+ngram_min = 1
+ngram_max = 2
+min_df = 1
+sublinear_tf = true
+c_value = 1.0
+aspect_threshold = 0.5
+sentiment_threshold = 0.6
+
+[evaluation]
+max_error_samples = 20

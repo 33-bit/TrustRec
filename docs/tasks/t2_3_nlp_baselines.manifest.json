@@ -1,0 +1,41 @@
+{
+  "artifact_paths": {
+    "dictionary_error_samples": "artifacts/t2_3/dictionary_error_samples.jsonl",
+    "dictionary_excluded_error_samples": "artifacts/t2_3/dictionary_excluded_error_samples.jsonl",
+    "dictionary_predictions": "artifacts/t2_3/dictionary_predictions.jsonl",
+    "dictionary_target_sentiment": "artifacts/t2_3/dictionary_target_sentiment.jsonl",
+    "tfidf_linear_svm_error_samples": "artifacts/t2_3/tfidf_linear_svm_error_samples.jsonl",
+    "tfidf_linear_svm_excluded_error_samples": "artifacts/t2_3/tfidf_linear_svm_excluded_error_samples.jsonl",
+    "tfidf_linear_svm_model": "artifacts/t2_3/tfidf_linear_svm_model.json",
+    "tfidf_linear_svm_predictions": "artifacts/t2_3/tfidf_linear_svm_predictions.jsonl",
+    "tfidf_linear_svm_target_sentiment": "artifacts/t2_3/tfidf_linear_svm_target_sentiment.jsonl"
+  },
+  "artifact_sha256": {
+    "dictionary_error_samples": "8e096f4bc724c7a7c5771576305f3031015aed73f77e572dde70eef275bef94f",
+    "dictionary_excluded_error_samples": "b6190daf3f17651ce7e34682eb2e96d9bb79a7a94cd27415e792e6a25e519229",
+    "dictionary_predictions": "2926c8439cb1de3963a14cb89c4c4032cf02d5ce8551f80eb201b79a898faea7",
+    "dictionary_target_sentiment": "2c5326b1b26b9e8a9ee6a3b017e8cfdd8bff6c1243a96730c4a48a406f085259",
+    "metrics": "3406431874712d24a9eb1493ed8c57142fe1bbcc627b4395a57166a1f0e34eb8",
+    "tfidf_linear_svm_error_samples": "f05e000189af4e4e3c9759b07e80d10e6786430ed16d4b30c9816401185ac93a",
+    "tfidf_linear_svm_excluded_error_samples": "38d4c7a3d464ea4b839512fa46f238043cd9d2082f2a375dea77991a9a79761c",
+    "tfidf_linear_svm_model": "93efe0fa8c9dc26b7aec4fb5b2ec7c5b809e72c0e790953d16ecad0c555315bf",
+    "tfidf_linear_svm_predictions": "b418d0d6b46fc85485a0d048bcaf167b048a2e8e14f551d306681df6ec8588cd",
+    "tfidf_linear_svm_target_sentiment": "fb5e36bd7e67369923bb88363e80eefe3e4f635a4168c3c9683bfe6083acad0a"
+  },
+  "code_hash": "c63a1ccd6aa64cded4b5c118a8413d8351c19e20ed564ce37618b21ac46c9149",
+  "code_revision": "82672a0dc8e05ea4e86babea342ba1488a51ba54",
+  "config_path": "configs/nlp_baselines.toml",
+  "configuration_hash": "3d02bd77ef0f48d910b15934877e4585166d00e2f3d1f52c66fe8844f2f8cee0",
+  "dataset_hash": "0b990d349f917c8b864a17a729f73f83314829b78d7307073d6bd0a644404043",
+  "frozen_pseudo_test": true,
+  "metrics_path": "artifacts/t2_3/metrics.json",
+  "protocol_version": "nlp-baseline-v1",
+  "pseudo_test_tuning_allowed": false,
+  "run_id": "t2.3-nlp-baselines-v1",
+  "schema_version": 1,
+  "seed": 7,
+  "snapshot_id": "video_games-full-d6c4efeb74aa",
+  "source_cutoff_timestamp": "2019-01-13T04:24:39.377000+00:00",
+  "status": "complete",
+  "task": "T2.3"
+}

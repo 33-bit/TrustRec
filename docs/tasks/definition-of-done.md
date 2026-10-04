@@ -1,13 +1,12 @@
 # Definition of Done
 
-A task is done only when:
+A task is done only when the following statements are true:
 
-- its output path and owner are recorded in the backlog;
-- the relevant ADR/spec is linked;
-- source data and cutoff lineage are recorded;
-- deterministic tests or validation commands pass;
-- generated artifacts carry snapshot/config/model hashes;
-- error/refusal cases are retained;
-- docs distinguish silver, gold, validation, and test roles;
-- the result can be reproduced without an untracked personal path.
-
+- The backlog records the output path and owner.
+- The task links its ADR and spec.
+- The task records its source data and cutoff history.
+- Deterministic tests or validation commands pass.
+- Generated artifacts carry snapshot, configuration, and model hashes.
+- The task keeps errors and refusal cases.
+- Docs distinguish LLM silver, LLM pseudo-test, validation, and recommendation test roles.
+- Another contributor can reproduce the result without a personal path.

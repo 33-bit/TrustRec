@@ -25,7 +25,6 @@ dev = [
   "pytest-cov>=5.0",
   "ruff>=0.6",
 ]
-laya = ["laya==0.3.23"]
 
 [project.scripts]
 trustrec = "trustrec.cli:main"
@@ -34,7 +33,7 @@ trustrec = "trustrec.cli:main"
 where = ["src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 testpaths = ["tests"]
 addopts = "-ra"
 

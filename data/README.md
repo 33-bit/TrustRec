@@ -1,11 +1,10 @@
 # Data Directory
 
-Raw and generated data are external artifacts. Do not commit review files, model weights, caches, or large Parquet outputs.
+Raw and generated data are external artifacts. Do not commit review files, model weights, caches, or large Parquet files.
 
-- `raw/` — downloaded source files or range-scan caches; ignored.
-- `interim/` — normalized temporary tables; ignored.
-- `processed/` — snapshot Parquet and model-ready tables; ignored.
-- `manifests/` — snapshot provenance JSON; ignored by default, but copy small decision manifests into `docs/tasks/` when they are part of a reviewable result.
+- `raw/`: Downloaded source files or range-scan caches. Git ignores this directory.
+- `interim/`: Normalized temporary tables. Git ignores this directory.
+- `processed/`: Snapshot Parquet and model-ready tables. Git ignores this directory.
+- `manifests/`: Snapshot provenance JSON. Git ignores this directory by default. Copy small decision manifests into `docs/tasks/` when they are part of a reviewable result.
 
-Use `scripts/build_snapshot.py` and record the exact command, source URL, byte size, source hash/window hashes, cutoff, and snapshot ID.
-
+Use `scripts/build_snapshot.py`. Record the exact command, source URL, byte size, source hash or window hashes, cutoff, and snapshot ID.

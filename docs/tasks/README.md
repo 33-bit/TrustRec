@@ -1,4 +1,3 @@
 # Tasks and Review Artifacts
 
-Task documents contain acceptance criteria and small artifacts such as category profiles, annotation worksheets, manifests, and comparison reports. Generated output must state whether it is pilot, silver, gold, validation, or test material.
-
+Task files contain acceptance rules and small artifacts. Examples include category profiles, LLM annotation records, manifests, and comparison reports. Each output states its split role, label status, source snapshot, cutoff, and usage limits. The repository has no human gold set.

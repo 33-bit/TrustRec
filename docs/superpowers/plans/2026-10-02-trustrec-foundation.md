@@ -1,14 +1,14 @@
 # TrustRec Foundation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+For agentic workers: use the repository task workflow to implement this plan. Track each step with a checkbox.
 
-**Goal:** Establish a reproducible TrustRec repository with typed contracts, quality gates, protocol documentation, and a task backlog.
+Goal: Establish a reproducible TrustRec repository with typed contracts, quality gates, protocol documentation, and a task backlog.
 
-**Architecture:** Keep research code under `src/trustrec/`, expose stable contracts from `schemas`, and use `Makefile` targets as the contributor interface. External data and generated artifacts are referenced by manifests and hashes rather than committed.
+Architecture: Keep research code under `src/trustrec/`. Expose stable contracts from `schemas`. Use `Makefile` targets as the contributor interface. Reference external data and generated artifacts with manifests and hashes.
 
-**Tech Stack:** Python 3.11+, setuptools, pytest, Ruff, Parquet/DuckDB, scikit-learn, sparse graph tooling, and Streamlit.
+Tech stack: Python 3.11+, setuptools, pytest, Ruff, Parquet/DuckDB, scikit-learn, sparse graph tooling, and Streamlit.
 
-**Spec:** `docs/superpowers/specs/2026-10-02-trustrec-foundation-design.md`
+Spec: `docs/superpowers/specs/2026-10-02-trustrec-foundation-design.md`
 
 ## Global Constraints
 
@@ -21,7 +21,7 @@
 
 ### Task 1: Repository harness
 
-**Files:** `pyproject.toml`, `Makefile`, `.pre-commit-config.yaml`, `.gitignore`, `README.md`, `CONTRIBUTING.md`
+Files: `pyproject.toml`, `Makefile`, `.pre-commit-config.yaml`, `.gitignore`, `README.md`, `CONTRIBUTING.md`
 
 - [x] Define Python package metadata, dependency groups, pytest paths, and Ruff rules.
 - [x] Add `make install`, `format`, `lint`, `test`, `check`, `validate`, and `demo` targets.
@@ -30,7 +30,7 @@
 
 ### Task 2: Snapshot-aware contracts
 
-**Files:** `src/trustrec/schemas/contracts.py`, `tests/unit/test_contracts.py`
+Files: `src/trustrec/schemas/contracts.py`, `tests/unit/test_contracts.py`
 
 - [x] Implement `SnapshotManifest`, `EvidenceRef`, and `RecommendationRecord` validation.
 - [x] Add tests for timezone-aware provenance, confidence bounds, and positive ranks.
@@ -38,7 +38,7 @@
 
 ### Task 3: Protocol and architecture records
 
-**Files:** `docs/adr/*.md`, `docs/specs/*.md`, `configs/protocol.toml`
+Files: `docs/adr/*.md`, `docs/specs/*.md`, `configs/protocol.toml`
 
 - [x] Record scope, temporal split, stack, reproducibility, and evidence decisions.
 - [x] Define table fields, candidate/target rules, metrics, and demo behavior.
@@ -46,7 +46,7 @@
 
 ### Task 4: Contributor and task workflow
 
-**Files:** `AGENTS.md`, `docs/plans/roadmap.md`, `docs/tasks/backlog.md`, `docs/tasks/task-template.md`
+Files: `AGENTS.md`, `docs/plans/roadmap.md`, `docs/tasks/backlog.md`, `docs/tasks/task-template.md`
 
 - [x] Document module ownership boundaries, commands, style, tests, and PR expectations.
 - [x] Decompose delivery into phases with dependencies and acceptance checks.
@@ -58,4 +58,3 @@
 - [ ] Run `python -m pytest -q` and confirm all contract tests pass.
 - [ ] Run `ruff format --check .` and `ruff check .` after dependencies are installed.
 - [ ] Review every spec for placeholders, contradictions, and unsupported result claims.
-

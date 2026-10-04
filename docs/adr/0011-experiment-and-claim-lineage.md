@@ -1,13 +1,12 @@
 # ADR-0011: Experiment and Claim Lineage
 
-- **Status:** Accepted
-- **Date:** 2026-10-03
+Status: Accepted
+Date: 2026-10-03
 
 ## Decision
 
-Every experiment receives a unique run ID and manifest containing snapshot, protocol, config, seed, code revision, model/prompt version, dataset hash, metrics path, and status. Reports reference run IDs instead of copying untraceable numbers.
+Give each experiment a unique run ID and manifest. The manifest contains the snapshot, protocol, configuration, seed, code revision, model or prompt version, dataset hash, metrics path, and status. Reports reference run IDs.
 
 ## Consequences
 
-Re-running with a changed prompt, threshold, or dependency creates a new run. Completed manifests are immutable; failed runs remain visible for audit.
-
+Create a new run when a prompt, threshold, or dependency changes. Keep completed manifests unchanged. Keep failed runs for audit.

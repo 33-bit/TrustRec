@@ -1,6 +1,6 @@
 # Experiment Manifest Contract
 
-Each run writes one JSON manifest beside its metrics:
+A manifest records the inputs and outputs of a run. Each run writes one JSON manifest beside its metrics. Use this structure:
 
 ```json
 {
@@ -19,5 +19,4 @@ Each run writes one JSON manifest beside its metrics:
 }
 ```
 
-`status` is `planned`, `running`, `complete`, or `failed`. A failed run retains its error and environment metadata. Never overwrite a completed manifest; create a new `run_id`.
-
+`status` is `planned`, `running`, `complete`, or `failed`. A failed run keeps its error and environment details. Do not overwrite a completed manifest. Create a new `run_id`.

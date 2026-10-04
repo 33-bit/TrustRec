@@ -1,4 +1,3 @@
 # Schemas Module
 
-Owns standard-library contracts and JSON schemas shared across pipeline modules. Schema changes require a version bump, migration note, and contract test.
-
+This module owns shared standard-library contracts and JSON schemas. A schema change requires a version bump, a migration note, and a contract test.

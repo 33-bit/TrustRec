@@ -1,31 +1,84 @@
 {
+  "schema_version": 2,
   "artifact": "docs/tasks/t2_1_llm_review.csv",
   "unit_count": 100,
-  "source_snapshot_id": "video_games-pilot-9e665a862c1a",
-  "source_cutoff": "T0",
+  "source_dataset": "Amazon Reviews 2023",
+  "source_provider": "McAuley Lab",
+  "source_snapshot_id": "video_games-full-d6c4efeb74aa",
+  "source_cutoff_timestamp": "2019-01-13T04:24:39.377000+00:00",
   "split_role": "development_pilot",
-  "label_status": "ai_preliminary_with_human_review_pending",
-  "manual_label_usage": "held_out_evaluation_only",
-  "manual_labels_in_model_training": false,
-  "manual_labels_in_recommendation_training": false,
-  "manual_labels_in_aspect_sentiment_training": false,
-  "development_subset_can_refine_guideline_prompt_settings": true,
-  "final_test_subset": false,
-  "final_test_frozen": false,
-  "gold_status": false,
-  "test_eligible": false,
+  "label_status": "llm_silver",
+  "frozen": false,
+  "model_id": "llm-subagent-label-pilot",
+  "model_revision": "recorded-in-t2.1-report",
+  "prompt_version": "t2.1-llm-v1",
+  "temperature": 0.0,
+  "seed": 0,
+  "generated_at": "2026-10-04T00:00:00Z",
+  "source_text_hash": "sha256",
+  "source_text_hash_field": "source_text_sha256",
+  "source_text_hashes_recorded_per_unit": true,
+  "required_record_fields": [
+    "schema_version",
+    "unit_id",
+    "review_id",
+    "item_id",
+    "source_snapshot_id",
+    "source_cutoff_timestamp",
+    "split_role",
+    "label_status",
+    "model_id",
+    "model_revision",
+    "prompt_version",
+    "temperature",
+    "seed",
+    "generated_at",
+    "source_text_sha256",
+    "timestamp",
+    "unit_start",
+    "unit_end",
+    "unit_text",
+    "source_snapshot_dataset_hash",
+    "configuration_hash",
+    "model_hash",
+    "labels",
+    "evidence_offsets",
+    "usage_restrictions"
+  ],
+  "usage_restrictions": {
+    "allowed_uses": [
+      "refine_aspect_guideline",
+      "refine_llm_prompt",
+      "review_model_errors",
+      "optional_nlp_training",
+      "build_nlp_features",
+      "build_evidence"
+    ],
+    "prohibited_uses": [
+      "recommendation_test_features",
+      "frozen_pseudo_test_score",
+      "human_agreement_claim",
+      "ground_truth_claim"
+    ]
+  },
   "recommendation_test": false,
-  "allowed_uses": [
-    "refine_aspect_guideline",
-    "refine_llm_prompt",
-    "review_model_errors",
-    "prepare_candidate_gold_labels"
+  "annotation_covers_entire_corpus": false,
+  "group_keys": [
+    "parent_asin",
+    "duplicate_group"
   ],
-  "prohibited_uses": [
-    "final_nlp_test_score",
-    "recommendation_test_features",
-    "claim_human_agreement",
-    "claim_final_model_accuracy"
+  "configuration_files": [
+    "configs/annotation.toml",
+    "configs/aspects.toml"
   ],
-  "reason": "These manually reviewed units are held out from model fitting and are a development/pilot subset only; a separate frozen manual final test subset must be created later."
+  "configuration_hash": "f03fb8709368efbb1f2c7cf6f3302450d111ba5b3099eaaf2a9485e64f6a641e",
+  "source_snapshot_dataset_hash": "0b990d349f917c8b864a17a729f73f83314829b78d7307073d6bd0a644404043",
+  "jsonl_artifact": "docs/tasks/t2_1_llm_review.jsonl",
+  "model_hash": "e7410b06c2bfd4fd91bd46e8cec94ef97b1ac6e72807389d43df11211e6ae63c",
+  "hash_definition": {
+    "source_snapshot_dataset_hash": "dataset_hash from the source snapshot manifest",
+    "configuration_hash": "sha256 of each listed path and file bytes in listed order",
+    "model_hash": "sha256 of canonical model_id, model_revision, prompt_version, temperature, and seed"
+  },
+  "source_snapshot_manifest": "docs/tasks/t1_2_full_snapshot_manifest.json"
 }

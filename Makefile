@@ -1,12 +1,10 @@
 PYTHON ?= python3
 
-.PHONY: install install-laya format lint test check demo validate leakage label-laya
+.PHONY: install format lint test check demo validate leakage snapshot-full
 
 install:
-	$(PYTHON) -m pip install -e ".[dev]"
-
-install-laya:
-	$(PYTHON) -m pip install -e ".[laya]"
+	$(PYTHON) -m pip install --requirement requirements.lock
+	$(PYTHON) -m pip install --no-deps --no-build-isolation -e .
 
 format:
 	ruff format .
@@ -29,8 +27,8 @@ leakage:
 	@test -n "$(SNAPSHOT_MANIFEST)" || (echo "Set SNAPSHOT_MANIFEST=..." && exit 2)
 	PYTHONPATH=src $(PYTHON) scripts/check_snapshot_leakage.py "$(SNAPSHOT_MANIFEST)"
 
-label-laya:
-	PYTHONPATH=src $(PYTHON) scripts/run_laya_labeling.py $(LAYA_ARGS)
+snapshot-full:
+	PYTHONPATH=src $(PYTHON) scripts/build_full_snapshot.py --category Video_Games
 
 demo:
 	streamlit run app/streamlit_app.py

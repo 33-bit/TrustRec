@@ -1,13 +1,12 @@
 # ADR-0003: Python Research Stack
 
-- **Status:** Accepted
-- **Date:** 2026-10-02
+Status: Accepted
+Date: 2026-10-02
 
 ## Decision
 
-Use Python 3.11+, Parquet, and DuckDB for tabular data; sparse matrices for graph computation; scikit-learn for baseline NLP and kNN; PyTorch only when a neural extension is justified; and Streamlit for the first demo. Keep the serving path artifact-based.
+Use Python 3.11 or newer, Parquet, and DuckDB for tables. Use sparse matrices for graph work. Use scikit-learn for NLP and kNN baselines. Use PyTorch only for a justified neural extension. Use Streamlit for the first demo. The serving path reads prepared artifacts.
 
 ## Rationale
 
-This stack matches the course methods, supports columnar profiling without loading a full category into memory, and keeps operational work proportional to a 3–4 person capstone team. A graph database or separate frontend is not required for the core evidence.
-
+This stack matches the course methods. It supports columnar profiling without loading a full category into memory. It also fits a 3–4 person capstone team. The core system does not need a graph database or a separate frontend.

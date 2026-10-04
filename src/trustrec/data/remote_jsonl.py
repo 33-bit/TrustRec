@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Iterator
 from typing import Any
@@ -32,14 +33,20 @@ def source_size(url: str) -> int:
 
 
 def iter_jsonl_records(
-    url: str, chunk_bytes: int = DEFAULT_WINDOW_BYTES
+    url: str,
+    chunk_bytes: int = DEFAULT_WINDOW_BYTES,
+    provenance: dict[str, Any] | None = None,
 ) -> Iterator[dict[str, Any]]:
     """Stream every complete JSONL record through sequential HTTP ranges."""
 
     total = source_size(url)
     remainder = b""
+    source_hash = hashlib.sha256()
+    chunk_hashes: dict[str, str] = {}
     for start in range(0, total, chunk_bytes):
         payload, _ = fetch_window(url, start, min(total - 1, start + chunk_bytes - 1))
+        source_hash.update(payload)
+        chunk_hashes[str(start)] = hashlib.sha256(payload).hexdigest()
         lines = (remainder + payload).split(b"\n")
         remainder = lines.pop()
         for line in lines:
@@ -47,6 +54,18 @@ def iter_jsonl_records(
                 yield json.loads(line)
     if remainder.strip():
         yield json.loads(remainder)
+    if provenance is not None:
+        provenance.update(
+            {
+                "source_url": url,
+                "source_bytes": total,
+                "scan": "full_sequential_range_scan",
+                "chunk_bytes": chunk_bytes,
+                "chunk_count": len(chunk_hashes),
+                "chunk_hashes": chunk_hashes,
+                "source_sha256": source_hash.hexdigest(),
+            }
+        )
 
 
 def sample_records(
@@ -76,10 +95,16 @@ def sample_records(
             if line.strip():
                 records.append(json.loads(line))
 
+    window_hashes = {str(start): hashlib.sha256(payload).hexdigest() for start, payload in windows}
+    window_digest = hashlib.sha256(
+        json.dumps(window_hashes, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
     return records, {
         "source_url": url,
         "source_bytes": total,
         "window_bytes": window_bytes,
         "window_count": len(windows),
         "window_starts": [start for start, _ in windows],
+        "window_hashes": window_hashes,
+        "window_digest": window_digest,
     }

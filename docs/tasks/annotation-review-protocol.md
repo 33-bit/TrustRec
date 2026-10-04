@@ -1,13 +1,18 @@
-# Annotation Review Protocol
+# LLM annotation protocol
 
-1. Keep Amazon Reviews 2023 by McAuley Lab as the main source; manually label a sample, not the whole corpus.
-2. Freeze the unit list and source offsets before label review.
-3. Assign every manual unit a split role: `development_pilot` or `final_test`.
-4. Keep the AI label visible only as a proposal; annotators record their own decision.
-5. Fill aspect/polarity/evidence span, out-of-scope, adjudication flag, and rationale.
-6. At least 20% of units receive two independent labels.
-7. Adjudicate disagreements against the guideline and record the decision reason.
-8. Keep all manual labels out of recommendation, aspect-extraction, and sentiment-model training.
-9. Use development labels only for guideline/prompt/model-setting refinement; never use them as final test.
-10. Freeze the final test subset before any tuning or prompt selection; use it only for final aspect, sentiment, and explanation evaluation.
-11. Export a manifest with annotator roles, date, guideline version, source snapshot, split role, and usage restrictions.
+This protocol uses Amazon Reviews 2023 by McAuley Lab. It does not require human labeling.
+
+1. Build the unit list from a snapshot manifest or an explicit cutoff.
+2. Keep only reviews with `timestamp < T0`.
+3. Store the exact ISO-8601 cutoff, snapshot ID, snapshot dataset hash, item ID, review ID, and source-text hash.
+4. Run the LLM with a recorded model ID, model revision, prompt version, temperature, seed, configuration hash, and model hash.
+5. Store aspect labels, sentiment, evidence text, unit offsets, and evidence offsets in the original review.
+6. Mark development output as `split_role = development_pilot` and `label_status = llm_silver`.
+7. Use the development pilot for prompt, guideline, threshold, and model-setting work.
+8. Create an independent `llm_pseudo_test` pass after development work ends.
+9. Freeze the pseudo-test manifest before model or prompt selection.
+10. Use the frozen pseudo-test only for aspect, sentiment, evidence, and explanation consistency.
+11. Use `recommendation_test` interactions and ratings for recommendation metrics.
+12. Store allowed and prohibited uses in every record and manifest.
+
+Do not call LLM labels human gold labels. Do not report human agreement or Cohen kappa. Do not use the frozen pseudo-test for tuning. Do not label the full Amazon Reviews 2023 corpus.

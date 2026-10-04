@@ -1,6 +1,5 @@
 # Reports and Figures
 
-Put generated metric tables in `reports/tables/` and figures in `reports/figures/`. These paths are ignored for generated outputs. A report-ready artifact must have a companion experiment manifest under the run output and a source citation in the research report.
+Put metric tables in `reports/tables/`. Put figures in `reports/figures/`. Git ignores generated files in these paths. Each report artifact must have an experiment manifest and a source citation.
 
-Do not paste a chart into a report without naming its snapshot, candidate protocol, metric, seed summary, and uncertainty method.
-
+Before you add a chart, name its snapshot, candidate protocol, metric, seed summary, and uncertainty method.

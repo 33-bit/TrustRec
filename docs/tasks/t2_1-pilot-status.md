@@ -1,22 +1,28 @@
-# T2.1 — Pilot Status
+# T2.1: pilot status
 
-The eight-aspect ontology and annotation guideline are ready. A deterministic worksheet of 100 unique review units was generated from snapshot `video_games-pilot-9e665a862c1a` with rating quotas 20/15/15/25/25 for ratings 1–5.
+Status: done as the LLM development pilot.
 
-The worksheet is explicitly a `development_pilot` subset of manually labeled held-out evaluation data. It contains weak keyword suggestions only. Both annotator columns and the adjudicated column are empty by design. Its labels may refine the guideline, prompt, or model settings, but they must not enter recommendation, aspect-extraction, or sentiment-model training and cannot become the final test set. T2.1 cannot be marked complete until two independent annotations cover at least 20% of the pilot and disagreements are resolved against the guideline. T2.2 must wait for those labels before computing agreement or locking the frozen final test split.
+The eight-aspect ontology is ready. The repository now contains a deterministic 100-unit LLM development pilot from the full snapshot `video_games-full-d6c4efeb74aa`.
 
-One subagent also produced an AI-only preliminary artifact from 79 pre-`T0` source reviews: 100 sentence/clause units with exact evidence offsets. It contains 52 out-of-scope units, 38 needs-adjudication flags, and 67 units without an ontology label. It is support for human review, not gold data or an independent annotator.
+Every LLM label row has `timestamp < 2019-01-13T04:24:39.377Z`. The CSV and JSONL label records store the full source snapshot ID, dataset hash, exact cutoff, split role `development_pilot`, status `llm_silver`, source-text hash, configuration hash, model hash, unit offsets, labels, and evidence offsets in the original review text. The pilot is development data. It can refine prompts, guidelines, thresholds, and model settings. It cannot produce recommendation test metrics.
 
-Laya local labeling is also available in `docs/tasks/t2_1_laya_pilot_labels.jsonl` with a reviewer-friendly CSV at `docs/tasks/t2_1_laya_review.csv`. The run is conservative at presence threshold 0.85 and remains AI preliminary; its runtime warning makes confidence uncalibrated for this pilot.
+The manifest and validator link this task to [ADR-0013](../adr/0013-llm-only-annotation-policy.md), the [NLP annotation contract](../specs/nlp-annotation-contract.md), and the [phase 2 plan](../plans/phase-2-nlp.md).
 
-Files:
+Run the validator with `python3 scripts/validate_ai_pilot_labels.py`. It checks all 100 CSV rows, all 100 JSONL rows, source snapshot IDs and text, provenance parity, source-text hashes, evidence offsets, cutoff membership, and manifest hashes.
+
+The final pseudo-test split does not exist yet. Create it from different source units after the pilot. Freeze its manifest before model or prompt selection. Use it for pseudo-label consistency and the explanation audit only.
+
+Rebuild the worksheet with `python3 scripts/build_annotation_pilot.py --manifest data/manifests/video_games-full-d6c4efeb74aa.json --output /tmp/t2_1_annotation_pilot.csv`. To use an explicit cutoff, pass `--snapshot <snapshot-dir> --cutoff <ISO-8601-cutoff>`.
+
+The recommendation test uses real Amazon temporal interactions and ratings. No final human gold dataset exists. Manual labeling is not required for the full source corpus.
+
+## Files
 
 - Guideline: `docs/tasks/t2_1-aspect-guideline.md`
 - Ontology: `configs/aspects.toml`
-- Worksheet: `docs/tasks/t2_1_annotation_pilot.csv`
-- LLM review CSV: `docs/tasks/t2_1_llm_review.csv`
-- LLM review manifest: `docs/tasks/t2_1_llm_review.manifest.json`
+- Pilot worksheet: `docs/tasks/t2_1_annotation_pilot.csv`
+- LLM labels: `docs/tasks/t2_1_llm_review.csv`
+- LLM records: `docs/tasks/t2_1_llm_review.jsonl`
+- LLM manifest: `docs/tasks/t2_1_llm_review.manifest.json`
+- Split template: `docs/tasks/llm-annotation-split-manifest.template.json`
 - Generator: `scripts/build_annotation_pilot.py`
-- AI preliminary labels: `docs/tasks/t2_1_ai_pilot_labels.jsonl`
-- AI label report: `docs/tasks/t2_1-ai-labeling-report.md`
-- Laya labels: `docs/tasks/t2_1_laya_pilot_labels.jsonl`
-- Laya review CSV: `docs/tasks/t2_1_laya_review.csv`

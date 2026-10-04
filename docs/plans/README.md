@@ -1,4 +1,3 @@
 # Phase Plans
 
-Phase plans describe sequence and exit criteria. The task backlog is the operational source of status; a plan is not complete evidence until its commands and manifests exist.
-
+Phase plans define work order and exit rules. The task backlog holds current status. A plan has evidence only after its commands and manifests exist.

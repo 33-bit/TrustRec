@@ -10,9 +10,12 @@ window_bytes = 33554432
 max_reviews = 200000
 metadata_mode = "full"
 entity_scope = "software_games_only_after_metadata_join"
+allowed_item_types = ["video game", "software download", "game", "computer game", "cd-rom", "dvd-rom", "game cartridge", "software"]
+excluded_entity_terms = ["accessories", "consoles", "controllers", "cables", "headsets", "shipping", "packaging", "sellers", "unrelated_hardware", "book", "guide", "magazine", "coloring", "workbook", "battery", "sleeve", "protector", "dock"]
+interaction_order = ["timestamp", "user_id", "item_id", "review_id"]
+repeated_user_item_rule = "keep_first_interaction_as_benchmark_event"
 
 [cutoffs]
 policy = "global_timestamp_quantiles"
 train_quantile = 0.80
 test_quantile = 0.90
-

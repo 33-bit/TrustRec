@@ -1,19 +1,16 @@
-# Research Claims Policy
+# Research claims policy
 
-## Allowed claims
+State only claims supported by a recorded manifest and experiment.
 
-- “The model improved NDCG@10 on this snapshot and protocol.”
-- “The explanation claim matched the cited sentence in X% of audited cases.”
-- “The adaptive gate helped the 1–2 interaction slice under the tested settings.”
+## Do not claim
 
-## Disallowed without additional evidence
+- Call LLM labels human gold labels.
+- Call pseudo-label consistency human agreement.
+- Report Cohen kappa for LLM outputs.
+- Treat an LLM label as ground truth.
+- Use the frozen pseudo-test for tuning.
+- Treat the development pilot as the final pseudo-test.
+- Treat a filtered pilot as a full-category benchmark.
+- Treat an Amazon rating or interaction as an aspect label.
 
-- Calling PageRank a reviewer honesty or fraud score.
-- Calling an uncalibrated ranking score a purchase probability.
-- Calling offline review-based ranking a sales, trust, or causal improvement.
-- Calling AI or silver labels human gold labels.
-- Treating manually labeled development/pilot data as final test data.
-- Reporting a metric tuned on the frozen manual final test subset.
-- Generalizing a pilot byte-window profile to the full category.
-
-Every report paragraph that states a result must name the dataset/snapshot, cutoff, model version, seed policy, metric, and uncertainty treatment or link to the result manifest.
+Each result names its source dataset, snapshot, cutoff, model, prompt version, seed, metric, and uncertainty method. Recommendation results use the real temporal test interactions. NLP and explanation results use LLM consistency language.

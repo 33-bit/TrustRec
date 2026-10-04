@@ -1,17 +1,16 @@
-# Task: T<N> — <short name>
+# Task: T<N>: <short name>
 
-## Context
+Read the related ADR, spec, and roadmap phase. A task output can be a file, artifact, or report. State its exact path.
 
-Link the relevant ADR, spec, and roadmap phase.
+## Context and output
 
-## Deliverable
+Link the related ADR, spec, and roadmap phase here. State the output that this task produces. Name the command that reproduces it.
 
-State the exact files, artifact, or report produced.
+## Acceptance criteria
 
-## Acceptance checks
+Use this checklist:
 
-- [ ] A deterministic command reproduces the deliverable.
+- [ ] A deterministic command reproduces the output.
 - [ ] Tests cover the changed contract.
-- [ ] Snapshot ID, cutoff, seed, and hashes are recorded where applicable.
-- [ ] Documentation and backlog status are updated.
-
+- [ ] The output records its snapshot ID, cutoff, seed, and hashes where they apply.
+- [ ] Documentation and backlog status match the result.

@@ -1,13 +1,12 @@
 # ADR-0010: Explanation Abstention and Faithfulness
 
-- **Status:** Accepted
-- **Date:** 2026-10-03
+Status: Accepted
+Date: 2026-10-03
 
 ## Decision
 
-An explanation may be `supported`, `insufficient_support`, or `unavailable`. The system must show conflicting positive/negative evidence and can refuse a strong claim. Faithfulness is tested by removing cited evidence and recomputing the local aspect contribution while holding the candidate set and original normalization fixed.
+An explanation can be `supported`, `insufficient_support`, or `unavailable`. The system must show positive and negative evidence when they conflict. It can refuse a strong claim. Test faithfulness by removing cited evidence and recomputing the local aspect score. Keep the candidate set and original normalization fixed.
 
 ## Consequences
 
-Explanation coverage is never reported without explanation correctness. A recommendation can remain high because MF or graph score dominates; the explanation must state that aspect evidence is only one component.
-
+Do not report explanation coverage without explanation correctness. MF or graph scores can keep an item high. The explanation must state when aspect evidence is only one score part.

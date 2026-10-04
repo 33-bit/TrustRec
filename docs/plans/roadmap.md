@@ -1,26 +1,27 @@
-# TrustRec Delivery Roadmap
+# TrustRec delivery roadmap
 
-## Phase 0 — Foundation (current)
+Read [the terminology guide](../reference/terminology.md) for terms used in this plan. The [task backlog](../tasks/backlog.md) records status.
 
-Repository harness, contracts, ADRs, protocol config, structural tests, and contributor guidance. Exit when `make validate` and the contract tests pass.
+## Phase 0: Foundation
 
-## Phase 1 — Data and snapshots
+Create repository tools, contracts, ADRs, protocol settings, structural tests, and the contributor guide. Run `make validate` and the contract tests.
 
-Profile Video Games and one fallback category, freeze the category decision, normalize schemas, create Parquet subsets, and publish train/validation/test manifests. Exit when timestamp and retention reports are reproducible.
+## Phase 1: Data and snapshots
 
-## Phase 2 — Aspect NLP
+Profile the Video Games category. Join reviews with metadata. Keep software games and exclude unrelated hardware. Create time-safe train, validation, and recommendation test tables. Record source and window hashes.
 
-Pilot the eight-aspect ontology, label the gold set, implement dictionary and TF-IDF/SVM baselines, calibrate confidence, and store offsets. Exit when the locked NLP protocol has metrics and error examples.
+## Phase 2: Aspect NLP
 
-## Phase 3 — Ranking core
+Run the 100-unit LLM development pilot before `T0`. Freeze an independent `llm_pseudo_test` split. Report pseudo-label consistency and explanation audit results. Do not create a human gold set.
 
-Implement popularity, item kNN, BPR MF, PPR, percentile normalization, and fallback branches. Exit when all core baselines run on the same snapshot and candidate set.
+## Phase 3: Ranking core
 
-## Phase 4 — TrustRec and explanations
+Implement popularity, item kNN, BPR MF, PPR, percentile normalization, and fallbacks. Use one candidate and target set for each comparison.
 
-Aggregate weighted evidence, implement the adaptive gate, render traceable explanations, and run faithfulness checks. Exit when every recommendation has an auditable component breakdown and explanation status.
+## Phase 4: TrustRec and explanations
 
-## Phase 5 — Evaluation and demo
+Aggregate weighted evidence and implement the adaptive gate. Add source links, abstention, and the explanation audit contract.
 
-Run ablations, sparse-history slices, noise stress tests, bootstrap intervals, and the Streamlit five-minute flow. Exit when artifacts, figures, and report claims point to immutable manifests.
+## Phase 5: Evaluation and demo
 
+Run ablations, sparse-history slices, noise tests, and bootstrap intervals. Build the Streamlit flow. Link each claim to an immutable manifest.

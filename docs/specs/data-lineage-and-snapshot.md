@@ -1,6 +1,6 @@
 # Data Lineage and Snapshot Contract
 
-## Lineage chain
+Lineage records where data comes from. A snapshot is a versioned view for time-based analysis. The pipeline follows this path:
 
 ```text
 source URL + retrieval date
@@ -13,17 +13,19 @@ source URL + retrieval date
   → recommendations + explanations + result manifest
 ```
 
-Every artifact must carry `snapshot_id`, schema version, source hash or source window hashes, creation time, and configuration hash. A local path is not sufficient provenance.
+Each artifact carries `snapshot_id`, a schema version, source and window hashes, a creation time, and a configuration hash. A local path does not provide full lineage.
 
-## Required snapshot tables
+The required tables are `interactions`, `review_texts`, `aspect_evidence`, `user_profiles`, `item_profiles`, `recommendations`, `train_interactions`, `fit_interactions`, `validation_targets`, and `test_targets`. Raw tables can contain future events. Feature tables must state their cutoff and pass leakage tests. Leakage means that future or held-out data influences a prediction.
 
-`interactions`, `review_texts`, `aspect_evidence`, `user_profiles`, `item_profiles`, `recommendations`, `train_interactions`, `fit_interactions`, `validation_targets`, and `test_targets`. Raw tables may contain future events; feature tables must state their cutoff and pass leakage checks.
+Join reviews with metadata before applying the software-game entity filter. Keep `Video Game`, `Software Download`, `Game`, `Computer Game`, `CD-ROM`, `DVD-ROM`, `Game Cartridge`, and `Software` item types. Exclude accessories, consoles, controllers, cables, headsets, shipping, packaging, sellers, books, and unrelated hardware. Record the matched and excluded counts.
 
-Metadata used only to determine entity scope or display fields is recorded as a retrieval snapshot. It must not silently become a historical feature. Any metadata field used for ranking or profiling needs a timestamp-valid lineage decision in the run manifest.
+Record metadata for display as a retrieval snapshot. Do not use it as a historical feature without a timestamp. If ranking or profiling uses metadata, record its timestamp in the run manifest.
 
-## Stable ID rules
+Use these ID rules:
 
-- `review_id`: SHA-256 of canonical source record plus category, truncated only for display if needed.
-- `item_id`: source `parent_asin`; retain `asin` separately when present.
-- `duplicate_group`: hash of normalized lower-cased review text within item scope.
-- `snapshot_id`: category, profile mode, and canonical dataset hash prefix.
+- `review_id`: Use SHA-256 of the canonical source record plus category. Truncate only for display.
+- `item_id`: Use `parent_asin`. Keep `asin` separately when present.
+- `duplicate_group`: Hash normalized lowercase review text with the item ID.
+- `snapshot_id`: Use category, profile mode, and the canonical dataset hash prefix.
+
+Sort source rows by `(timestamp, user_id, item_id, review_id)`. For a repeated user-item pair, keep the first event as the benchmark interaction. Later events can appear in later snapshots, but they cannot create another target for the same pair.

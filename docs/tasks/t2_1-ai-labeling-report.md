@@ -1,30 +1,15 @@
-# T2.1 AI Preliminary Labeling Report
+# T2.1: LLM development pilot report
 
-**Data role:** development/pilot only. These AI labels are held out from all model training and may support guideline/prompt/model-setting refinement. They are not final-test labels.
+Status: done as the development pilot. Related records are [ADR-0013](../adr/0013-llm-only-annotation-policy.md), the [NLP annotation contract](../specs/nlp-annotation-contract.md), and the [phase 2 plan](../plans/phase-2-nlp.md).
 
-## Scope and selection
+Data role: `development_pilot` with status `llm_silver`.
 
-This artifact contains 100 sentence/clause units selected deterministically from the existing pilot worksheet. The manifest cutoff **T0 is 2021-04-09T19:03:26.064Z**; only worksheet reviews with `timestamp < T0` were eligible, preventing post-T0 target text from entering corpus-development labels. There were **79 eligible source reviews**. Units were extracted from the raw worksheet text with Python character offsets and selected in round-robin passes over source review order (one unit per review per pass), yielding 100 unique `(review_id, start, end)` units across all 79 eligible reviews.
+The 100 units come from reviews before `T0 = 2019-01-13T04:24:39.377Z` in full snapshot `video_games-full-d6c4efeb74aa`. The snapshot dataset hash is `0b990d349f917c8b864a17a729f73f83314829b78d7307073d6bd0a644404043`. The pilot is separate from the recommendation test and is not a human gold set.
 
-Selection and offset validation are reproducible with `python3 scripts/validate_ai_pilot_labels.py`.
+Each row stores the original review text, the labeled unit text and offsets, the source-text SHA-256 hash, review ID, item ID, timestamp, labels, evidence offsets, and LLM provenance. Evidence offsets use the original review text. The records also store the configuration hash `f03fb8709368efbb1f2c7cf6f3302450d111ba5b3099eaaf2a9485e64f6a641e` and model hash `e7410b06c2bfd4fd91bd46e8cec94ef97b1ac6e72807389d43df11211e6ae63c`. The manifest defines the hash inputs. The model hash identifies the recorded model and run settings. It does not identify model weights.
 
-## Artifact and provenance
+Use this pilot to find prompt and ontology errors. You can change the prompt, guideline, threshold, or model settings after reviewing this data. You can use its labels for optional NLP training. Do not use the pilot for final pseudo-test scoring or recommendation metrics.
 
-- `docs/tasks/t2_1_ai_pilot_labels.jsonl` — exactly 100 records, version `t2.1-ai-v1`.
-- Every record is marked `ai_preliminary` with provenance `subagent-label-pilot`.
-- Labels were manually reasoned from each selected text unit; weak keyword suggestions and a classifier were not used. Original review text, stable IDs, timestamps, SHA-256 source text hashes, and evidence offsets are retained.
-- This is not a gold set, independent annotator output, or adjudicated data. Human annotator columns in the worksheet remain untouched.
+Rebuild the source worksheet with `python3 scripts/build_annotation_pilot.py --manifest data/manifests/video_games-full-d6c4efeb74aa.json --output /tmp/t2_1_annotation_pilot.csv`. Run `python3 scripts/validate_ai_pilot_labels.py` to validate both label artifacts. The validator checks 100 CSV units, 100 JSONL units, exact provenance parity, source snapshot review IDs and text, source-text hashes, evidence offsets, cutoff membership, and manifest hashes.
 
-## Validation summary
-
-| Check | Result |
-| --- | ---: |
-| Unique units | 100 |
-| Pre-T0 source reviews | 79 |
-| Out-of-scope hardware/merchant units | 52 |
-| Needs adjudication | 38 |
-| Units without an ontology label | 67 |
-
-Evidence spans were checked to match the original source string exactly at their recorded offsets. Label counts are: gameplay positive 13, gameplay negative 2, story negative 1, graphics positive 2, graphics negative 1, performance negative 8, controls negative 1, multiplayer positive 1, content/replay positive 1, content/replay negative 2, and value positive 4.
-
-Many worksheet entries describe accessories, packaging, shipping, or very short/vague opinions. They are retained with `out_of_scope` or `needs_adjudication` flags rather than forcing a game-aspect interpretation. Human review is still required before using any labels as gold data.
+Create the independent `llm_pseudo_test` split after development work ends. Freeze it before tuning. Report its results as aspect, sentiment, evidence-span, or explanation consistency. Do not call the results human agreement or ground-truth accuracy.

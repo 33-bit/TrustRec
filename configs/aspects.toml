@@ -28,12 +28,15 @@ sentiments = ["positive", "negative", "neutral"]
 allow_out_of_scope = true
 duplicate_group_must_share_split = true
 
-[manual_data_usage]
+[llm_data_usage]
 source = "Amazon Reviews 2023 by McAuley Lab"
-usage = "held_out_evaluation"
-manual_labels_in_model_training = false
-manual_labels_in_recommendation_training = false
-manual_labels_in_aspect_sentiment_training = false
-development_subset_can_refine_guideline_prompt_settings = true
-final_test_subset_frozen = true
-manual_label_entire_corpus = false
+development_split_role = "development_pilot"
+development_label_status = "llm_silver"
+pseudo_test_split_role = "llm_pseudo_test"
+pseudo_test_label_status = "llm_pseudo_test"
+llm_pseudo_test_in_model_training = false
+llm_labels_in_recommendation_training = false
+llm_silver_in_optional_nlp_training = true
+llm_labels_are_human_gold = false
+pseudo_test_frozen_before_tuning = true
+annotation_covers_entire_corpus = false

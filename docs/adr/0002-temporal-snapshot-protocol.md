@@ -1,13 +1,12 @@
 # ADR-0002: Global Temporal Snapshots
 
-- **Status:** Accepted
-- **Date:** 2026-10-02
+Status: Accepted
+Date: 2026-10-02
 
 ## Decision
 
-Train, validation, fit-final, and test data are separated by global timestamp cutoffs. User-level “last review” splits are not the primary benchmark because they can allow future information from other users into feature construction. Every feature, graph edge, vocabulary, profile, and evidence item must have a timestamp earlier than its snapshot cutoff.
+Use global timestamp cutoffs for train, validation, final fit, and test data. Do not use a user-level last-review split as the main benchmark. That split can leak future data from other users. Each feature, graph edge, vocabulary, profile, and evidence item must have a timestamp before its snapshot cutoff.
 
 ## Consequences
 
-Snapshot manifests and leakage assertions are first-class artifacts. Any component fitted before test must be rebuilt from data before the test boundary; post-cutoff text cannot enter an explanation.
-
+Snapshot manifests and leakage checks are required artifacts. Rebuild each test-dependent component from data before the test boundary. Do not use post-cutoff text in an explanation.

@@ -1,12 +1,17 @@
-# T1.3 — Leakage Assertions
+# T1.3: full leakage checks
 
-**Status:** Complete for `video_games-pilot-9e665a862c1a` as a development-pilot check; the same assertions must run on the final benchmark snapshot.
+Status: Complete for the full benchmark snapshot.
 
-The snapshot now separates raw interactions from time-safe feature and target tables:
+Manifest: [`t1_2_full_snapshot_manifest.json`](t1_2_full_snapshot_manifest.json).
 
-- `train_interactions` contains events before `T0`.
-- `fit_interactions` contains events before `T1`.
-- `validation_targets` contains positive, unseen item pairs in `[T0, T1)`.
-- `test_targets` contains positive, unseen item pairs at or after `T1`.
+The leakage command reads the full train, fit, validation target, recommendation test, and item metadata tables. It confirms that `T0` is earlier than `T1`, required IDs and timestamps exist, training rows precede `T0`, fit rows precede `T1`, and train and fit review IDs do not appear in target tables.
 
-`scripts/check_snapshot_leakage.py` verifies that feature timestamps are strictly earlier than their cutoff and that train/fit review IDs are disjoint from validation/test target IDs. The checker ran successfully on the generated Parquet files. Unit tests also cover a future timestamp failure, target-ID overlap failure, and a clean disjoint case.
+The command also checks feature and evidence tables when a manifest includes them. It checks shared evaluation sets and frozen pseudo-test restrictions when those records exist.
+
+Run the leakage command from the repository root:
+
+```bash
+PYTHONPATH=src python3 scripts/check_snapshot_leakage.py docs/tasks/t1_2_full_snapshot_manifest.json
+```
+
+The leakage command passed for `video_games-full-d6c4efeb74aa` on 2026-10-04. The full snapshot is eligible for recommendation model evaluation. NLP and explanation artifacts still need their own cutoff checks.

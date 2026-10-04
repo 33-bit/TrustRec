@@ -1,33 +1,23 @@
-# T1.2 — Snapshot and Parquet Subset
+# T1.2: full snapshot and Parquet tables
 
-**Status:** Complete for the Video Games pilot  
-**Snapshot:** `video_games-pilot-9e665a862c1a`  
-**Manifest:** `data/manifests/video_games-pilot-9e665a862c1a.json`
+Status: Complete for the full Video Games category.
 
-This is a **development pilot, not the final benchmark snapshot**. Entity filtering for software games versus accessories and the final benchmark eligibility decision remain open.
+Source: Amazon Reviews 2023 by McAuley Lab, Video Games category.
 
-## Build rule
+The full benchmark manifest is `video_games-full-d6c4efeb74aa`. The dataset hash is `0b990d349f917c8b864a17a729f73f83314829b78d7307073d6bd0a644404043`. The reviewable copy is [`t1_2_full_snapshot_manifest.json`](t1_2_full_snapshot_manifest.json). The builder streams all source records in 50,000-row batches. It scans metadata before the scope filter. It writes source chunk hashes, source hashes, cutoff values, row counts, and artifact hashes.
 
-The builder reads three fixed 32 MiB ranges from the Video Games review JSONL, removes duplicate stable review IDs, sorts by `(timestamp, user_id, parent_asin)`, and keeps at most 200,000 rows. It then scans the metadata JSONL sequentially in 32 MiB ranges and keeps only records whose `parent_asin` occurs in the review subset. No raw source file is stored in the repository.
+The full scan reads 4,624,615 review records and 137,269 metadata records. It keeps 1,737,112 software-game review records before stable-ID deduplication. The final tables contain 1,717,097 interactions, 1,717,097 review texts, 49,749 items, and 1,031,539 users.
 
-## Output
+The snapshot contains 1,373,677 training interactions, 1,545,387 fit interactions, 95,559 validation targets, and 76,435 recommendation test targets. Metadata coverage is 100%.
 
-| Artifact | Rows | Location |
-| --- | ---: | --- |
-| interactions | 168,470 | `data/processed/video_games/video_games-pilot-9e665a862c1a/interactions.parquet` |
-| review_texts | 168,470 | `data/processed/video_games/video_games-pilot-9e665a862c1a/review_texts.parquet` |
-| item_metadata | 37,789 | `data/processed/video_games/video_games-pilot-9e665a862c1a/item_metadata.parquet` |
-| train_interactions | 134,776 | `data/processed/video_games/video_games-pilot-9e665a862c1a/train_interactions.parquet` |
-| fit_interactions | 151,623 | `data/processed/video_games/video_games-pilot-9e665a862c1a/fit_interactions.parquet` |
-| validation_targets | 6,659 | `data/processed/video_games/video_games-pilot-9e665a862c1a/validation_targets.parquet` |
-| test_targets | 6,419 | `data/processed/video_games/video_games-pilot-9e665a862c1a/test_targets.parquet` |
+The cutoffs are `T0 = 2019-01-13T04:24:39.377Z` and `T1 = 2020-08-31T22:46:09.247Z`. The builder sorts rows by `(timestamp, user_id, item_id, review_id)`. It removes duplicate stable review IDs. It keeps the first event for each repeated user and item pair.
 
-All 37,789 item IDs in the subset matched a metadata record. The snapshot uses global timestamp quantiles near 80% and 90% as `T0` and `T1`; the exact UTC cutoffs are stored in the manifest. The canonical dataset hash is `9e665a862c1a760c886faa016cc8e2f90d06105f39d40e0328bde55baed584ca`.
+Run the full build from the repository root:
 
-## Reproducibility check
+```bash
+PYTHONPATH=src python3 scripts/build_full_snapshot.py --category Video_Games --batch-size 50000
+```
 
-The builder was run twice with identical category, byte-window, maximum-row, and metadata-mode arguments. The second run produced the same dataset hash and the same SHA-256 values for all seven Parquet artifacts. Only the manifest's `created_at` field changes between runs.
+The command writes generated Parquet files under `data/processed/` and the manifest under `data/manifests/`. Do not commit raw source files or generated Parquet files.
 
-## Boundary for T1.3
-
-The subset now has stable IDs, source timestamps, and explicit cutoffs. T1.3 should add assertions that no feature/evidence timestamp reaches its cutoff, no target review ID enters a feature table, and the same candidate/user sets are used across models.
+The full snapshot is ready for recommendation model training and temporal evaluation. It does not include aspect labels or model result tables.

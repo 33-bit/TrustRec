@@ -1,18 +1,19 @@
-# TrustRec Terminology
+# TrustRec terms
 
-| Term | Meaning in this repository |
+| Term | Meaning |
 | --- | --- |
-| aspect | A product dimension such as gameplay, story, performance, or value. |
-| evidence | A source sentence/clause and offsets that support an aspect claim. |
-| support | Weighted volume and diversity of past evidence; not a confidence interval. |
-| confidence | A calibrated or model-reported NLP decision measure; never review authenticity. |
-| trust | Ability to inspect evidence and disagreement in a recommendation. |
-| snapshot | A time-bounded view of interactions, text, graph, profiles, and models. |
-| candidate | A known item before cutoff that the user has not previously reviewed. |
-| target | A future observed item with rating ≥4 under the locked evaluation protocol. |
-| silver label | AI-generated label used for development or triage, not gold truth. |
-| gold label | Human-reviewed label with a frozen guideline and adjudication record. |
-| abstention | A deliberate refusal to emit a strong label, explanation, or prediction when support is insufficient. |
+| Aspect | A product property such as gameplay or performance. |
+| Evidence | Source text that supports a recommendation claim. |
+| Cutoff | The time boundary for data use. |
+| Snapshot | A versioned view of source data and its cutoff. |
+| `llm_silver` | LLM labels for development, features, or evidence. |
+| `llm_pseudo_test` | Frozen LLM labels for pseudo-label consistency checks. |
+| `recommendation_test` | Real Amazon temporal interactions and ratings for recommendation metrics. |
+| Development pilot | A split that can refine prompts, guidelines, thresholds, or model settings. |
+| Pseudo-label consistency | Agreement between a model output and a frozen LLM label pass. |
+| Abstention | A refusal to emit a claim when support is insufficient. |
+| Duplicate group | An item-scoped hash for repeated normalized review text. |
+| Leakage | Future or held-out information that affects a prediction. |
+| Coverage | The fraction of eligible cases that receive a result. |
 
-Never use “trust” as a synonym for reviewer honesty or fake-review detection in reports.
-
+LLM labels are not human gold labels. The project does not use human annotator agreement or Cohen kappa. Manual labeling is not required for the full Amazon Reviews 2023 corpus.

@@ -1,25 +1,29 @@
-# NLP Annotation Contract
+# NLP annotation contract
 
-## Unit and fields
+An annotation record stores an LLM label for one sentence or clause. The record keeps the original review text, the unit text, and the unit offsets. Evidence offsets refer to the original review text.
 
-The unit is a sentence or clause with offsets into the original review text. A unit may emit multiple `(aspect, polarity, evidence span)` records. Required provenance is `review_id`, `item_id`, `timestamp`, `snapshot_id`, model/prompt version, label status, and annotator/reviewer identity type.
+## Source and split roles
 
-## Ontology
+Amazon Reviews 2023 by McAuley Lab remains the source. The source reviews and ratings provide recommendation interactions and data for model fitting under the temporal protocol. The project does not require manual labels for the full corpus.
 
-`gameplay`, `story`, `graphics`, `performance`, `controls`, `multiplayer`, `content_replay`, and `value`. Use `out_of_scope` for accessories, sellers, shipping, packaging, or unrelated hardware. Use `needs_adjudication` when entity, aspect, polarity, or span is ambiguous.
-
-## Label policy
-
-Use positive, negative, or neutral only for an explicit claim. Do not infer an aspect from a star rating or from generic praise unless the guideline explicitly accepts the generic gameplay interpretation. Preserve negation, contrast, and intensity. Evidence offsets must match the source string exactly.
-
-## Data usage and split contract
-
-The main source remains **Amazon Reviews 2023 by McAuley Lab**. Its unlabelled review/rating corpus supplies training and recommendation interactions under the temporal protocol. Manual labels are sampled held-out evaluation data and are never used to train the recommendation, aspect extraction, or sentiment models.
-
-| Data partition | Allowed use | Forbidden use |
+| Role | Allowed use | Forbidden use |
 | --- | --- | --- |
-| Amazon Reviews 2023 source corpus | recommendation interactions, snapshot construction, model fitting under cutoff | treating missing feedback as known negative |
-| Manual development/pilot subset | optional guideline, prompt, threshold, and model-setting refinement; error analysis | final test scoring; model training with manual labels |
-| Manual final test subset | final aspect extraction, sentiment, and explanation-quality evaluation | any tuning, prompt selection, threshold selection, or training |
+| `development_pilot` with `llm_silver` | Refine guidelines, prompts, thresholds, model settings, optional NLP training, NLP features, and evidence. | Recommendation test scoring. |
+| `llm_pseudo_test` with `llm_pseudo_test` | Frozen aspect, sentiment, evidence, and explanation consistency checks. | Prompt, threshold, model, or hyperparameter tuning after freeze. |
+| `recommendation_test` | Recommendation metrics on real Amazon user-item interactions and ratings. | Use as a source of NLP labels. |
 
-AI labels are `silver`/`ai_preliminary`. The reviewed pilot is development material. The final test set is grouped by product and duplicate group, labeled by at least two annotators on the required overlap sample, frozen before tuning, and stored with an immutable split manifest. Manual labeling is not required for the entire Amazon Reviews 2023 corpus.
+LLM labels are not human gold labels. Do not report human agreement, Cohen kappa, or ground-truth accuracy. Report pseudo-label agreement or consistency. Keep recommendation metrics separate from NLP checks.
+
+## Label rules
+
+Use these aspects: `gameplay`, `story`, `graphics`, `performance`, `controls`, `multiplayer`, `content_replay`, and `value`. Use `out_of_scope` for accessories, consoles, controllers, cables, headsets, sellers, shipping, packaging, and unrelated hardware.
+
+Use `positive`, `negative`, or `neutral` only for an explicit claim. Keep negation, contrast, and intensity. Evidence text must equal the source text at the recorded offsets. Mark an unclear unit for model abstention or error review. Do not invent a label from a star rating.
+
+## Required provenance
+
+Each record stores schema version 2, `unit_id`, `review_id`, `item_id`, `source_snapshot_id`, `timestamp`, the snapshot dataset hash, the exact ISO-8601 `source_cutoff_timestamp`, `split_role`, `label_status`, `model_id`, `model_revision`, `prompt_version`, `temperature`, `seed`, `generated_at`, `source_text_sha256`, `unit_start`, `unit_end`, `unit_text`, the configuration hash, the model hash, labels, evidence offsets, scope flags, and usage restrictions. The schema enforces these fields.
+
+When a model session does not expose its revision, temperature, or sampling seed, record `unavailable`. Keep the split selection seed separate. Do not invent a provider revision or sampling value.
+
+Freeze the pseudo-test manifest before model or prompt selection. Keep the frozen test data unchanged. Archive old pilot outputs when their source snapshot or provenance does not match the active manifest.

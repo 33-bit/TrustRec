@@ -1,18 +1,17 @@
 # Experiment Run Template
 
-Copy this checklist for every model/ablation run:
+A run manifest records the experiment inputs and results. A seed controls random results. Copy these fields for each model or ablation run:
 
 - Run ID:
 - Snapshot ID:
 - Protocol version:
-- Model and config path:
-- Dataset/config/model/prompt hashes:
+- Model and configuration path:
+- Dataset, configuration, model, and prompt hashes:
 - Seed(s):
 - Cutoffs `T0`, `T1`:
 - Candidate/target rule:
 - Eligible users and exclusions:
-- Metrics and bootstrap settings:
+- Metrics and bootstrap configuration:
 - Output paths:
-- Leakage check command/result:
+- Leakage command and result:
 - Notes, failures, and limitations:
-

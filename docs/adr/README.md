@@ -1,4 +1,5 @@
 # Architecture Decision Records
 
-ADRs are immutable decisions. If a decision changes, add a new ADR that supersedes the old one and link both. Do not silently edit a historical rationale after an experiment has used it.
+ADRs record decisions. Treat accepted ADRs as immutable. If a decision changes, add a new ADR and link the old and new records. Do not change old reasoning after an experiment uses it.
 
+ADR-0013 changes the annotation policy. It supersedes the human-annotation parts of ADR-0007. ADR-0007 remains unchanged.

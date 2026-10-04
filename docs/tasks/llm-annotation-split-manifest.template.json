@@ -1,0 +1,49 @@
+{
+  "schema_version": 2,
+  "record_schema_version": 2,
+  "source_dataset": "Amazon Reviews 2023",
+  "source_provider": "McAuley Lab",
+  "source_snapshot_id": "record-from-snapshot-manifest",
+  "source_snapshot_dataset_hash": "record-from-snapshot-manifest",
+  "source_cutoff_timestamp": "record-from-snapshot-manifest",
+  "partitions": {
+    "development_pilot": {
+      "split_role": "development_pilot",
+      "label_status": "llm_silver",
+      "frozen": false,
+      "allowed_uses": ["guideline_refinement", "prompt_refinement", "model_setting_selection", "optional_nlp_training", "error_analysis"],
+      "prohibited_uses": ["recommendation_test", "final_pseudo_test_score"]
+    },
+    "llm_pseudo_test": {
+      "split_role": "llm_pseudo_test",
+      "label_status": "llm_pseudo_test",
+      "frozen": true,
+      "allowed_uses": ["aspect_consistency", "sentiment_consistency", "evidence_consistency"],
+      "prohibited_uses": ["prompt_selection", "threshold_tuning", "model_tuning", "hyperparameter_tuning"]
+    },
+    "recommendation_test": {
+      "split_role": "recommendation_test",
+      "source": "Amazon temporal interactions and ratings",
+      "allowed_uses": ["ndcg", "recall", "precision", "coverage", "diversity"]
+    }
+  },
+  "provenance": {
+    "model_id": "record-for-each-run",
+    "model_revision": "record-for-each-run",
+    "prompt_version": "record-for-each-run",
+    "temperature": 0.0,
+    "seed": 0,
+    "generated_at": "2026-10-04T00:00:00Z",
+    "source_text_sha256": "record-for-each-unit",
+    "configuration_hash": "record-from-configuration-files",
+    "model_hash": "record-from-model-provenance",
+    "source_text_hash_field": "source_text_sha256"
+  },
+  "hash_definition": {
+    "source_snapshot_dataset_hash": "dataset_hash from the source snapshot manifest",
+    "configuration_hash": "sha256 of each listed path and file bytes in listed order",
+    "model_hash": "sha256 of canonical model_id, model_revision, prompt_version, temperature, and seed"
+  },
+  "group_keys": ["parent_asin", "duplicate_group"],
+  "annotation_covers_entire_corpus": false
+}

@@ -1,27 +1,24 @@
-# T2.1 — Aspect Annotation Guideline
+# T2.1: aspect label guideline
 
-## Labeling unit
-
-Annotate one sentence or clause at a time. Split a sentence when it contains two independent claims, for example a positive story claim and a negative performance claim. Preserve the original text and record character offsets for each evidence span.
+The LLM labels one sentence or clause at a time. Split a sentence when it has two separate claims. Keep the original text and record character offsets for each evidence span.
 
 ## Aspect definitions
 
 | Aspect | Include | Exclude |
 | --- | --- | --- |
-| `gameplay` | mechanics, pacing, engagement, difficulty | story quality or graphics alone |
-| `story` | plot, characters, dialogue, narrative | gameplay mechanics |
-| `graphics` | visuals, art style, animation, presentation | frame rate or crashes |
-| `performance` | speed, bugs, crashes, lag, stability, hardware demands | subjective difficulty |
-| `controls` | input, mapping, responsiveness, camera handling | general gameplay enjoyment |
-| `multiplayer` | online/local play, matchmaking, player community | single-player content |
-| `content_replay` | amount of content, length, endgame, replay value | monetary price |
-| `value` | worth the money or time, price-to-experience judgment | absolute price without a value judgment |
+| `gameplay` | Mechanics, pacing, engagement, and difficulty. | Story or graphics alone. |
+| `story` | Plot, characters, dialogue, and narrative. | Gameplay mechanics. |
+| `graphics` | Visuals, art style, animation, and presentation. | Frame rate and crashes. |
+| `performance` | Speed, bugs, crashes, lag, stability, and hardware demands. | Subjective difficulty. |
+| `controls` | Input, mapping, responsiveness, and camera handling. | General enjoyment. |
+| `multiplayer` | Online or local play, matchmaking, and the game community. | Single-player content. |
+| `content_replay` | Content amount, length, endgame, and replay value. | Price alone. |
+| `value` | Worth of the money or time. | A price without a value claim. |
 
-Use `positive`, `negative`, or `neutral` sentiment for the aspect claim. A factual mention without an evaluative direction is `neutral`. Do not infer a user's personal interest from the polarity of one review. If an aspect is ambiguous, mark `needs_adjudication` rather than forcing a label.
+Use `positive`, `negative`, or `neutral` for the claim. Use `out_of_scope` for accessories, shipping, packaging, sellers, and unrelated hardware. Do not infer an aspect from a star rating. Let the LLM abstain when the text is unclear.
 
-## Adjudication protocol
+## Pilot and pseudo-test rules
 
-Two annotators label at least 20% independently. They record aspect, sentiment, evidence span, and an out-of-scope flag. Disagreements are discussed against this guideline, and the adjudicator records the final label plus a short reason. Changes to this guideline apply only to train/development examples after the gold test is locked.
+The 100-unit pilot has split role `development_pilot` and status `llm_silver`. Use it to refine the prompt, guideline, threshold, or model settings. Do not use it for recommendation test scoring.
 
-The pilot worksheet is intentionally unadjudicated until the team supplies two independent label columns. Weak keyword suggestions are convenience hints only and must not be used as gold labels.
-
+Create an independent `llm_pseudo_test` pass after the pilot. Freeze its source units and provenance before tuning. Use it only for aspect, sentiment, evidence, and explanation consistency checks.

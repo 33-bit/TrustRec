@@ -1,4 +1,3 @@
 # Explanations Module
 
-Owns evidence selection, claim templates, conflict wording, support thresholds, refusal reasons, and faithfulness recomputation. It never invents evidence text or hides a dominant non-aspect score component.
-
+This module selects evidence and writes claims. It owns conflict wording, support thresholds, refusal reasons, and faithfulness tests. It must not invent evidence or hide a dominant non-aspect score.

@@ -1,13 +1,12 @@
 # ADR-0009: Score Normalization and Adaptive Gate
 
-- **Status:** Accepted as testable design
-- **Date:** 2026-10-03
+Status: Accepted as testable design
+Date: 2026-10-03
 
 ## Decision
 
-Normalize component scores as within-candidate percentile ranks before combining them. Compare a fixed hybrid against the adaptive gate. The gate increases the aspect contribution when user history is short and item evidence support is high; it falls back toward MF/graph when support is weak.
+Normalize each score as a percentile rank within the user candidate set. Compare a fixed hybrid with the adaptive gate. The gate gives more weight to aspects when history is short and evidence support is high. It gives more weight to MF and graph scores when support is weak.
 
 ## Consequences
 
-The gate is a hypothesis, not a guaranteed improvement. Its parameters are selected on validation only. Score components and gate values are persisted for faithfulness analysis.
-
+The gate is a hypothesis. It is not a guaranteed improvement. Select its parameters on validation only. Store score parts and gate values for faithfulness analysis.

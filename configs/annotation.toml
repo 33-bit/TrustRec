@@ -1,26 +1,31 @@
 [source]
 dataset = "Amazon Reviews 2023"
 provider = "McAuley Lab"
-manual_label_scope = "sampled_sentence_or_clause_units"
-manual_label_entire_corpus = false
+annotation_scope = "sampled_sentence_or_clause_units"
+annotation_covers_entire_corpus = false
 
 [usage]
-manual_labels_are_held_out = true
-manual_labels_in_model_training = false
+llm_pseudo_test_is_held_out = true
+llm_labels_in_recommendation_training = false
+llm_silver_in_optional_nlp_training = true
 recommendation_interactions_from_source = true
-aspect_sentiment_training_uses_manual_labels = false
+llm_labels_are_human_gold = false
 
-[development_subset]
+[development_pilot]
 optional = true
+split_role = "development_pilot"
+label_status = "llm_silver"
 allowed_uses = ["refine_guideline", "refine_prompt", "select_model_settings", "debug_errors"]
-final_test_eligible = false
 
-[final_test_subset]
+[llm_pseudo_test]
+split_role = "llm_pseudo_test"
+label_status = "llm_pseudo_test"
 frozen_before_tuning = true
-allowed_uses = ["final_aspect_evaluation", "final_sentiment_evaluation", "final_explanation_audit"]
+allowed_uses = ["aspect_consistency", "sentiment_consistency", "evidence_consistency"]
 tuning_allowed = false
 prompt_selection_allowed = false
 
 [annotation]
-minimum_double_annotation_fraction = 0.20
+source_text_hash = "sha256"
+required_cutoff_format = "ISO-8601-with-timezone"
 split_group_keys = ["parent_asin", "duplicate_group"]

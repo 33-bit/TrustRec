@@ -1,31 +1,209 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://trustrec.local/schemas/annotation-record.schema.json",
-  "title": "TrustRec annotation record",
+  "title": "TrustRec LLM annotation record",
   "type": "object",
-  "required": ["unit_id", "review_id", "text", "labels", "out_of_scope", "needs_adjudication", "provenance"],
+  "required": [
+    "schema_version",
+    "unit_id",
+    "review_id",
+    "item_id",
+    "text",
+    "source_snapshot_id",
+    "source_cutoff_timestamp",
+    "split_role",
+    "label_status",
+    "model_id",
+    "model_revision",
+    "prompt_version",
+    "temperature",
+    "seed",
+    "generated_at",
+    "source_text_sha256",
+    "timestamp",
+    "unit_start",
+    "unit_end",
+    "unit_text",
+    "source_snapshot_dataset_hash",
+    "configuration_hash",
+    "model_hash",
+    "labels",
+    "evidence_offsets",
+    "out_of_scope",
+    "needs_review",
+    "usage_restrictions",
+    "provenance"
+  ],
   "properties": {
-    "unit_id": {"type": "string"},
-    "review_id": {"type": "string"},
+    "schema_version": {"const": 2},
+    "unit_id": {"type": "string", "minLength": 1},
+    "review_id": {"type": "string", "minLength": 1},
+    "item_id": {"type": "string", "minLength": 1},
     "text": {"type": "string"},
+    "source_snapshot_id": {"type": "string", "minLength": 1},
+    "source_cutoff_timestamp": {"$ref": "#/$defs/iso_timestamp"},
+    "split_role": {"enum": ["development_pilot", "llm_pseudo_test"]},
+    "label_status": {"enum": ["llm_silver", "llm_pseudo_test"]},
+    "model_id": {"type": "string", "minLength": 1},
+    "model_revision": {"type": "string", "minLength": 1},
+    "prompt_version": {"type": "string", "minLength": 1},
+    "temperature": {
+      "oneOf": [
+        {"type": "number", "minimum": 0},
+        {"const": "unavailable"}
+      ]
+    },
+    "seed": {
+      "oneOf": [
+        {"type": "integer"},
+        {"const": "unavailable"}
+      ]
+    },
+    "generated_at": {"$ref": "#/$defs/iso_timestamp"},
+    "source_text_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": {"type": "integer", "minimum": 0},
+    "unit_start": {"type": "integer", "minimum": 0},
+    "unit_end": {"type": "integer", "minimum": 1},
+    "unit_text": {"type": "string"},
+    "source_snapshot_dataset_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "configuration_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "model_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "labels": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/label"}
+    },
+    "evidence_offsets": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["aspect", "polarity", "start", "end", "evidence"],
+        "required": ["start", "end"],
         "properties": {
-          "aspect": {"enum": ["gameplay", "story", "graphics", "performance", "controls", "multiplayer", "content_replay", "value"]},
-          "polarity": {"enum": ["positive", "negative", "neutral"]},
           "start": {"type": "integer", "minimum": 0},
-          "end": {"type": "integer", "minimum": 1},
-          "evidence": {"type": "string"}
-        }
+          "end": {"type": "integer", "minimum": 1}
+        },
+        "additionalProperties": true
       }
     },
     "out_of_scope": {"type": "boolean"},
-    "needs_adjudication": {"type": "boolean"},
-    "provenance": {"type": "object"}
+    "needs_review": {"type": "boolean"},
+    "usage_restrictions": {
+      "type": "object",
+      "required": ["allowed_uses", "prohibited_uses"],
+      "properties": {
+        "allowed_uses": {"type": "array", "items": {"type": "string"}},
+        "prohibited_uses": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "provenance": {"$ref": "#/$defs/provenance"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"split_role": {"const": "llm_pseudo_test"}}},
+      "then": {"properties": {"label_status": {"const": "llm_pseudo_test"}}}
+    },
+    {
+      "if": {"properties": {"split_role": {"const": "development_pilot"}}},
+      "then": {"properties": {"label_status": {"const": "llm_silver"}}}
+    }
+  ],
+  "$defs": {
+    "iso_timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "label": {
+      "type": "object",
+      "required": ["aspect", "polarity", "start", "end", "evidence"],
+      "properties": {
+        "aspect": {
+          "enum": [
+            "gameplay",
+            "story",
+            "graphics",
+            "performance",
+            "controls",
+            "multiplayer",
+            "content_replay",
+            "value"
+          ]
+        },
+        "polarity": {"enum": ["positive", "negative", "neutral"]},
+        "start": {"type": "integer", "minimum": 0},
+        "end": {"type": "integer", "minimum": 1},
+        "evidence": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "source_snapshot_id",
+        "source_cutoff_timestamp",
+        "split_role",
+        "label_status",
+        "model_id",
+        "model_revision",
+        "prompt_version",
+        "temperature",
+        "seed",
+        "generated_at",
+        "source_text_sha256",
+        "source_snapshot_dataset_hash",
+        "configuration_hash",
+        "model_hash",
+        "usage_restrictions"
+      ],
+      "properties": {
+        "source_snapshot_id": {"type": "string", "minLength": 1},
+        "source_cutoff_timestamp": {"$ref": "#/$defs/iso_timestamp"},
+        "split_role": {"enum": ["development_pilot", "llm_pseudo_test"]},
+        "label_status": {"enum": ["llm_silver", "llm_pseudo_test"]},
+        "model_id": {"type": "string", "minLength": 1},
+        "model_revision": {"type": "string", "minLength": 1},
+        "prompt_version": {"type": "string", "minLength": 1},
+        "temperature": {
+          "oneOf": [
+            {"type": "number", "minimum": 0},
+            {"const": "unavailable"}
+          ]
+        },
+        "seed": {
+          "oneOf": [
+            {"type": "integer"},
+            {"const": "unavailable"}
+          ]
+        },
+        "generated_at": {"$ref": "#/$defs/iso_timestamp"},
+        "source_text_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_snapshot_dataset_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "configuration_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "model_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "usage_restrictions": {"$ref": "#/properties/usage_restrictions"}
+      },
+      "additionalProperties": true
+    }
   },
   "additionalProperties": true
 }
-

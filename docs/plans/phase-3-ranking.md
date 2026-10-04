@@ -1,16 +1,16 @@
-# Phase 3 Plan — Ranking Core
+# Phase 3 Plan: Ranking Core
 
-**Goal:** Implement comparable ranking baselines on the same snapshot contract.
+Implement ranking baselines on the same snapshot contract. A baseline is a model used for comparison. Each model must rank the same candidate set.
 
 ## Tasks
 
 1. Implement most-popular and item-kNN baselines.
-2. Implement BPR MF with snapshot-safe positive interactions and unknown negatives.
-3. Implement positive-edge user–item graph and personalized PageRank with dangling-node fallback.
-4. Implement aspect-only scores and percentile normalization.
-5. Persist component scores, candidate IDs, seeds, and model hashes.
+2. Implement BPR MF with pre-cutoff positive interactions and unknown negatives.
+3. Build the graph from positive user-item edges.
+4. Implement personalized PageRank with a fallback for nodes that have no edges.
+5. Implement aspect-only scores and percentile normalization.
+6. Store score parts, candidate IDs, seeds, and model hashes.
 
-## Exit criteria
+## Exit rules
 
-All B0–B4 models rank identical user/candidate sets and produce comparable manifests. No model reads future target text or metadata.
-
+All B0–B4 models rank identical user and candidate sets. They produce comparable manifests. No model reads future target text or metadata.

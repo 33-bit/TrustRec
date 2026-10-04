@@ -5,7 +5,7 @@ python = ">=3.11"
 
 [data]
 preferred_domain = "Video Games"
-domain_status = "pilot_primary_entity_filter_pending"
+domain_status = "pilot_primary_entity_filter_complete"
 review_positive_threshold = 4
 candidate_rule = "known_items_before_cutoff_minus_user_history"
 raw_data_policy = "external_with_checksum"
@@ -15,6 +15,8 @@ train_fraction = 0.80
 validation_fraction = 0.10
 test_fraction = 0.10
 cutoff_policy = "global_timestamp"
+recommendation_test_split_role = "recommendation_test"
+annotation_data_roles = ["development_pilot", "llm_pseudo_test"]
 
 [evaluation]
 primary_metric = "ndcg@10"

@@ -1,4 +1,3 @@
 # Evaluation Module
 
-Owns candidate/target construction, leakage assertions, ranking metrics, slices, bootstrap intervals, noise stress tests, explanation audits, and experiment manifests. Test data remains read-only after protocol lock.
-
+This module builds candidates and targets. It owns leakage checks, ranking metrics, data slices, bootstrap intervals, noise tests, explanation audits, and run manifests. Keep test data read-only after protocol lock.

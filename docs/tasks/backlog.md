@@ -2,16 +2,16 @@
 
 | ID | Status | Task | Depends on | Suggested owner | Done when |
 | --- | --- | --- | --- | --- | --- |
-| T0.1 | done | Install harness and run structural checks | — | all | `make validate` and contract tests pass |
-| T0.2 | planned | Lock Python/dependency versions | T0.1 | owner 1 | environment file and install log are recorded |
+| T0.1 | done | Install harness and run structural checks |: | all | `make validate` and contract tests pass |
+| T0.2 | done | [Lock Python/dependency versions](t0_2-environment.md) | T0.1 | owner 1 | [`requirements.lock`](../../requirements.lock), `.python-version`, and [`t0_2-install.log`](t0_2-install.log) are recorded |
 | T0.3 | done | Lock design/spec/ADR/folder map | T0.1 | all | docs index, contracts, plans, and folder READMEs exist |
-| T1.1 | done — pilot | Profile candidate Amazon categories | T0.1 | owner 1 | category decision memo includes counts, missingness, and retention |
-| T1.2 | done — pilot | Build snapshot manifest and Parquet subset | T1.1 | owner 1 | rerun produces identical hashes from the same source |
-| T1.3 | done | Add leakage assertions | T1.2 | owner 2 | future timestamps and target review IDs fail tests |
-| T2.1 | in progress — development pilot | Pilot aspect guideline and 100 labels | T1.1 | owner 2 | manual development subset is reviewed without entering model training |
-| T2.2 | planned | Label and freeze manual final test split | T2.1 | owners 2–3 | grouped frozen final test manifest, overlap agreement, and adjudication exist |
-| T2.3 | planned | Implement aspect/sentiment baseline | T2.2 | owner 2 | F1, coverage, and error samples are exported |
-| T3.1 | planned | Implement popularity and item kNN | T1.2 | owner 3 | both rank on the shared candidate contract |
+| T1.1 | done | Profile full Video Games category | T0.1 | owner 1 | full source profile records counts, missingness, scope, and retention |
+| T1.2 | done | Build full snapshot manifest and Parquet subset | T1.1 | owner 1 | full manifest, source hashes, artifact hashes, and temporal tables are recorded |
+| T1.3 | done | Add leakage assertions to the full snapshot | T1.2 | owner 2 | full train, fit, validation, and recommendation test tables pass leakage checks |
+| T2.1 | done: full-source development pilot | Run the 100-unit LLM development pilot before `T0` | T1.1 | owner 2 | all units use the full snapshot and have exact cutoff and LLM provenance |
+| T2.2 | done | [Freeze an independent LLM pseudo-test split and lock the model, prompt, and version manifest](t2_2-llm-pseudo-test.md) | T2.1 | owners 2–3 | [`t2_2_llm_pseudo_test.manifest.json`](t2_2_llm_pseudo_test.manifest.json) freezes 100 units and blocks tuning |
+| T2.3 | done | [Implement aspect and sentiment baselines](t2_3-nlp-baselines.md) | T2.2 | owner 2 | [`t2_3_nlp_baselines.manifest.json`](t2_3_nlp_baselines.manifest.json), predictions, consistency metrics, and error samples are exported |
+| T3.1 | done | [Implement popularity and item kNN](t3_1-ranking-baselines.md) | T1.2 | owner 3 | shared candidate contract; output: `src/trustrec/recommenders/{contracts,popularity,item_knn}.py` |
 | T3.2 | planned | Implement BPR MF and PPR | T3.1 | owner 3 | seed-controlled artifacts and component scores exist |
 | T4.1 | planned | Implement evidence aggregation and adaptive gate | T2.3,T3.2 | owner 2 | fixed and adaptive hybrids share normalization and tuning budget |
 | T4.2 | planned | Implement explanation and faithfulness checks | T4.1 | owner 2 | claims cite evidence and removal tests are logged |

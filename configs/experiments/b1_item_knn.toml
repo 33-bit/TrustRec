@@ -2,4 +2,7 @@ model_id = "b1_item_knn"
 module = "recommenders.item_knn"
 metric_protocol = "global-temporal-v1"
 similarity = "cosine"
-
+positive_threshold = 4
+neighbor_limit = 0
+cutoff_rule = "timestamp_strictly_before"
+tie_break = "item_id_ascending"

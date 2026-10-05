@@ -31,6 +31,11 @@ computes ranking metrics and paired bootstrap intervals, and writes a metrics
 artifact beside a run manifest. Pass one `--model MODEL_ID=PATH` argument for
 each baseline or ablation.
 
+Use `scripts/package_report.py` to build the T5.3 report and reproducibility
+bundle. The command reads `configs/report_bundle.json`, checks every listed
+hash, resolves claim pointers, and writes the report and checksum inventory.
+Use `--verify-bundle` on the saved directory before publication.
+
 ```bash
 PYTHONPATH=src python3 scripts/run_evaluation.py \
   --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json \

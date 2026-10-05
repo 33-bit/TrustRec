@@ -37,6 +37,14 @@ REQUIRED_FILES = (
     "schemas/explanation-audit.schema.json",
     "scripts/run_explanation_audit.py",
     "scripts/run_evaluation.py",
+    "scripts/package_report.py",
+    "configs/report_bundle.json",
+    "schemas/report-bundle.schema.json",
+    "docs/specs/report-bundle-contract.md",
+    "docs/superpowers/specs/2026-10-06-t5-3-report-bundle-design.md",
+    "docs/plans/t5_3-report-bundle.md",
+    "docs/tasks/t5_3-report-bundle.md",
+    "app/demo_bundle.manifest.json",
 )
 
 

@@ -14,7 +14,7 @@
 | T3.1 | done | [Implement popularity and item kNN](t3_1-ranking-baselines.md) | T1.2 | owner 3 | shared candidate contract; output: `src/trustrec/recommenders/{contracts,popularity,item_knn}.py` |
 | T3.2 | done | Implement BPR MF and PPR | T3.1 | owner 3 | seed-controlled artifacts and component scores exist |
 | T4.1 | done | [Implement evidence aggregation and adaptive gate](t4_1-evidence-aggregation.md) | T2.3,T3.2 | owner 2 | fixed and adaptive hybrids share normalization and tuning budget |
-| T4.2 | planned | Implement explanation and faithfulness checks | T4.1 | owner 2 | claims cite evidence and removal tests are logged |
+| T4.2 | done | [Implement explanation and faithfulness checks](t4_2-explanation-faithfulness.md) | T4.1 | owner 2 | claims cite evidence and removal tests are logged |
 | T5.1 | planned | Run baseline, ablation, and sparse-history evaluation | T4.2 | owner 1 | metrics, bootstrap intervals, and slice counts are versioned |
 | T5.2 | planned | Build the five-minute Streamlit demo | T4.2 | owner 3 | demo follows `docs/specs/demo-contract.md` |
 | T5.3 | planned | Package report and reproducibility bundle | T5.1,T5.2 | all | every claim links to a manifest and command |

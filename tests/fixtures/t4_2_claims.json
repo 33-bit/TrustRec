@@ -1,0 +1,41 @@
+{
+  "recommendations": [
+    {
+      "recommendation_id": "t4-recommendation-1",
+      "user_id": "t4-user-1",
+      "item_id": "t4-item-1",
+      "snapshot_id": "video_games-full-d6c4efeb74aa",
+      "score_parts": {"mf": 0.2, "graph": 0.1, "aspect": 0.4},
+      "explanation": {
+        "status": "supported",
+        "claims": [
+          {
+            "item_id": "t4-item-1",
+            "aspect": "story",
+            "claim": "Item t4-item-1 has positive evidence for story.",
+            "sentiment_direction": "positive",
+            "status": "supported",
+            "evidence": [
+              {
+                "review_id": "t4-r1",
+                "item_id": "t4-item-1",
+                "aspect": "story",
+                "text": "The story is clear.",
+                "sentiment": "positive",
+                "confidence": 1.0,
+                "source_timestamp": 1547150000000,
+                "start": 0,
+                "end": 19
+              }
+            ],
+            "support": 0.5,
+            "distinct_author_count": 1,
+            "effective_sample_size": 1.0,
+            "score_contribution": 0.5,
+            "conflicting": false
+          }
+        ]
+      }
+    }
+  ]
+}

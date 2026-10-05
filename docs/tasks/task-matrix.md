@@ -13,6 +13,6 @@ This table maps each workstream to its code, output, and research question. RQ m
 | Graph ranking | `src/trustrec/graph/` | PPR scores and graph manifest | Popularity comparison | RQ1 |
 | Evidence profiles | `src/trustrec/explanations/`, `scripts/build_evidence_profiles.py` | Snapshot-scoped profile artifact | Support, duplicate, cutoff, and conflict tests | RQ2/RQ3 |
 | Hybrid gate | `src/trustrec/recommenders/`, `scripts/run_hybrid.py` | H0 and T0 score artifacts | Shared normalization, candidate set, and validation budget | RQ2 |
-| Faithfulness | `src/trustrec/explanations/`, `docs/specs/explanation-audit-contract.md` | Removal audit | Contribution change and abstention | RQ4 |
+| Faithfulness | `src/trustrec/explanations/`, `scripts/run_explanation_audit.py` | `explanation-audit.schema.json` and removal audit | Contribution change, traceability, and abstention | RQ4 |
 | Evaluation | `src/trustrec/evaluation/` | Metrics, bootstrap intervals, groups | Manifest lineage | All |
 | Demo/report | `app/`, `reports/` | Demo and figures/report | Five-minute script | RQ4 |

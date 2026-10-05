@@ -17,3 +17,12 @@ Check these properties:
 An LLM judge is optional. If the project uses one, record its model ID, model revision, prompt version, temperature, seed, and generation time. Report the result as LLM agreement or consistency. Do not report it as human judgment or ground-truth accuracy.
 
 The NLP pseudo-test checks aspect, sentiment, and evidence-span consistency. The recommendation test uses real Amazon temporal interactions and ratings. Keep both result types in separate manifests.
+
+The implementation stores the cited review IDs and character offsets in each
+audit row. It stores the original, cited-removal, and random-removal score
+parts. The random removal uses a fixed seed and removes the same number of
+review IDs as the cited removal. The candidate set hash is recorded when the
+caller supplies candidate IDs. The normalization path remains fixed for every
+recomputed score.
+
+The audit artifact follows [`explanation-audit.schema.json`](../../schemas/explanation-audit.schema.json).

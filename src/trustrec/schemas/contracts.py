@@ -56,6 +56,8 @@ class EvidenceRef:
     sentiment: str
     confidence: float
     source_timestamp: datetime
+    start_offset: int | None = None
+    end_offset: int | None = None
 
     def __post_init__(self) -> None:
         for value, field in (
@@ -71,6 +73,17 @@ class EvidenceRef:
             raise ValueError("confidence must be between 0 and 1")
         if self.source_timestamp.tzinfo is None:
             raise ValueError("source_timestamp must be timezone-aware")
+        if (self.start_offset is None) != (self.end_offset is None):
+            raise ValueError("start_offset and end_offset must be supplied together")
+        if self.start_offset is not None and (
+            self.start_offset < 0 or self.end_offset is None or self.end_offset <= self.start_offset
+        ):
+            raise ValueError("evidence offsets must describe a non-empty span")
+
+    def to_dict(self) -> dict[str, Any]:
+        result = asdict(self)
+        result["source_timestamp"] = self.source_timestamp.isoformat()
+        return result
 
 
 @dataclass(frozen=True)

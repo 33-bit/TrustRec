@@ -68,3 +68,21 @@ def test_annotation_schema_records_unavailable_sampling_provenance() -> None:
 
     assert {"const": "unavailable"} in schema["properties"]["temperature"]["oneOf"]
     assert {"const": "unavailable"} in schema["properties"]["seed"]["oneOf"]
+
+
+def test_explanation_audit_schema_records_removal_contributions() -> None:
+    root = Path(__file__).resolve().parents[2]
+    schema_path = root / "schemas/explanation-audit.schema.json"
+    assert schema_path.is_file()
+    schema = json.loads(schema_path.read_text())
+    assert {
+        "recommendation_id",
+        "support_status",
+        "audit_result",
+        "evidence_review_id",
+        "evidence_offsets",
+        "original_contributions",
+        "recomputed_contributions",
+        "random_recomputed_contributions",
+        "normalization_fixed",
+    } <= set(schema["$defs"]["audit"]["required"])

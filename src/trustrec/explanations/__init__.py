@@ -1,6 +1,18 @@
 """Evidence selection and explanation rendering."""
 
 from .aggregation import EvidenceAggregator
+from .claims import (
+    Claim,
+    ClaimEvidence,
+    ClaimThresholds,
+    EvidenceReference,
+    Explanation,
+    ExplanationClaim,
+    build_explanation,
+    select_claims,
+    select_explanation,
+    select_explanation_claims,
+)
 from .evidence import (
     AggregatedEvidence,
     EvidenceObservation,
@@ -16,12 +28,30 @@ from .evidence import (
     review_weight,
     user_aspect_weights,
 )
+from .faithfulness import (
+    EvidenceRemovalAudit,
+    FaithfulnessAudit,
+    audit_evidence_removal,
+    audit_explanation,
+    audit_faithfulness,
+    evidence_removal_audit,
+    run_evidence_removal_test,
+    run_faithfulness_audit,
+)
 
 __all__ = [
     "AggregatedEvidence",
     "EvidenceObservation",
     "EvidenceRow",
     "EvidenceAggregator",
+    "ClaimEvidence",
+    "Claim",
+    "ClaimThresholds",
+    "EvidenceReference",
+    "Explanation",
+    "ExplanationClaim",
+    "FaithfulnessAudit",
+    "EvidenceRemovalAudit",
     "aggregate_aspect_evidence",
     "aggregate_evidence",
     "aggregate_item_aspects",
@@ -32,4 +62,14 @@ __all__ = [
     "personalized_aspect_score",
     "review_weight",
     "user_aspect_weights",
+    "build_explanation",
+    "select_claims",
+    "select_explanation",
+    "select_explanation_claims",
+    "audit_faithfulness",
+    "audit_evidence_removal",
+    "audit_explanation",
+    "evidence_removal_audit",
+    "run_evidence_removal_test",
+    "run_faithfulness_audit",
 ]

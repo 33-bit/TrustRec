@@ -23,6 +23,7 @@ REQUIRED_FILES = (
     "docs/specs/evaluation-contract.md",
     "docs/specs/nlp-annotation-contract.md",
     "docs/specs/explanation-audit-contract.md",
+    "docs/tasks/t4_2-explanation-faithfulness.md",
     "docs/adr/0013-llm-only-annotation-policy.md",
     "docs/tasks/llm-annotation-split-manifest.template.json",
     "docs/tasks/t2_2-llm-pseudo-test.md",
@@ -32,6 +33,8 @@ REQUIRED_FILES = (
     "scripts/validate_llm_pseudo_test.py",
     "schemas/trustrec-artifacts.schema.json",
     "schemas/annotation-record.schema.json",
+    "schemas/explanation-audit.schema.json",
+    "scripts/run_explanation_audit.py",
 )
 
 

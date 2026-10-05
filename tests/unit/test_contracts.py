@@ -31,6 +31,25 @@ def test_evidence_rejects_invalid_confidence() -> None:
         )
 
 
+def test_evidence_serializes_traceable_offsets() -> None:
+    evidence = EvidenceRef(
+        review_id="r1",
+        item_id="i1",
+        aspect="story",
+        text="Good story",
+        sentiment="positive",
+        confidence=0.9,
+        source_timestamp=datetime(2026, 1, 1, tzinfo=UTC),
+        start_offset=4,
+        end_offset=14,
+    )
+
+    serialized = evidence.to_dict()
+    assert serialized["start_offset"] == 4
+    assert serialized["end_offset"] == 14
+    assert serialized["source_timestamp"].endswith("+00:00")
+
+
 def test_recommendation_requires_positive_rank() -> None:
     with pytest.raises(ValueError, match="rank"):
         RecommendationRecord(

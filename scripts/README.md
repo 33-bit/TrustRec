@@ -21,6 +21,10 @@ hashes. Use `scripts/run_hybrid.py` to combine prepared MF, graph, and aspect
 scores for `h0_fixed_hybrid` or `t0_trustrec`. Both models require the same
 candidate IDs and use the shared percentile normalizer.
 
+Use `scripts/run_explanation_audit.py` to audit prepared claims. The command
+removes cited reviews, compares the score change with a same-size random
+removal, and writes snapshot and hash fields with every audit row.
+
 ```bash
 python3 scripts/run_ranking_baselines.py \
   --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json \

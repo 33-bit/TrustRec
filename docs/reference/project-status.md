@@ -14,6 +14,9 @@ The team completed T2.2 with an independent frozen `llm_pseudo_test` split from 
 
 ## Open work
 
-NLP consistency results are recorded in [T2.3](../tasks/t2_3-nlp-baselines.md). Explanation audit results, ranking metrics, faithfulness, bootstrap intervals, latency, and demo results are pending.
+NLP consistency results are recorded in [T2.3](../tasks/t2_3-nlp-baselines.md).
+T4.1 now provides snapshot-scoped evidence profiles, shared hybrid
+normalization, H0, and T0. Explanation audit results, ranking metrics,
+faithfulness, bootstrap intervals, latency, and demo results are pending.
 
 No final human gold dataset exists. Manual labeling is not required for the Amazon Reviews 2023 corpus. Recommendation results must use real Amazon temporal interactions and ratings.

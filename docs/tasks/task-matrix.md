@@ -11,8 +11,8 @@ This table maps each workstream to its code, output, and research question. RQ m
 | NLP baseline | `src/trustrec/nlp/` | [`t2_3-nlp-baselines.md`](t2_3-nlp-baselines.md), ignored predictions, metrics, and error samples | Aspect, sentiment, evidence-span consistency, and coverage | RQ1/RQ3 |
 | Collaborative ranking | `src/trustrec/recommenders/` | Model artifact and scores | Same candidates | RQ1 |
 | Graph ranking | `src/trustrec/graph/` | PPR scores and graph manifest | Popularity comparison | RQ1 |
-| Evidence profiles | `src/trustrec/data/`, `src/trustrec/explanations/` | Profiles and evidence | Support and duplicate tests | RQ2/RQ3 |
-| Hybrid gate | `src/trustrec/recommenders/` | Fixed/adaptive runs | Validation tuning | RQ2 |
+| Evidence profiles | `src/trustrec/explanations/`, `scripts/build_evidence_profiles.py` | Snapshot-scoped profile artifact | Support, duplicate, cutoff, and conflict tests | RQ2/RQ3 |
+| Hybrid gate | `src/trustrec/recommenders/`, `scripts/run_hybrid.py` | H0 and T0 score artifacts | Shared normalization, candidate set, and validation budget | RQ2 |
 | Faithfulness | `src/trustrec/explanations/`, `docs/specs/explanation-audit-contract.md` | Removal audit | Contribution change and abstention | RQ4 |
 | Evaluation | `src/trustrec/evaluation/` | Metrics, bootstrap intervals, groups | Manifest lineage | All |
 | Demo/report | `app/`, `reports/` | Demo and figures/report | Five-minute script | RQ4 |

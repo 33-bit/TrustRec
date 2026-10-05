@@ -14,5 +14,5 @@ This table maps each workstream to its code, output, and research question. RQ m
 | Evidence profiles | `src/trustrec/explanations/`, `scripts/build_evidence_profiles.py` | Snapshot-scoped profile artifact | Support, duplicate, cutoff, and conflict tests | RQ2/RQ3 |
 | Hybrid gate | `src/trustrec/recommenders/`, `scripts/run_hybrid.py` | H0 and T0 score artifacts | Shared normalization, candidate set, and validation budget | RQ2 |
 | Faithfulness | `src/trustrec/explanations/`, `scripts/run_explanation_audit.py` | `explanation-audit.schema.json` and removal audit | Contribution change, traceability, and abstention | RQ4 |
-| Evaluation | `src/trustrec/evaluation/` | Metrics, bootstrap intervals, groups | Manifest lineage | All |
-| Demo/report | `app/`, `reports/` | Demo and figures/report | Five-minute script | RQ4 |
+| Evaluation | `src/trustrec/evaluation/`, `scripts/run_evaluation.py` | [`t5_1-evaluation.md`](t5_1-evaluation.md), metrics, bootstrap intervals, groups | Manifest lineage and equal evaluation sets | All |
+| Demo/report | `app/demo.py`, `app/streamlit_app.py`, `app/demo_bundle.json` | [`t5_2-streamlit-demo.md`](t5_2-streamlit-demo.md), demo bundle, and five-minute script | AppTest, lineage fields, evidence states, and priority isolation | RQ4 |

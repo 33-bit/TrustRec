@@ -25,6 +25,22 @@ Use `scripts/run_explanation_audit.py` to audit prepared claims. The command
 removes cited reviews, compares the score change with a same-size random
 removal, and writes snapshot and hash fields with every audit row.
 
+Use `scripts/run_evaluation.py` to compare prepared ranking JSON Lines files.
+The command reads the temporal snapshot tables, builds one shared user set,
+computes ranking metrics and paired bootstrap intervals, and writes a metrics
+artifact beside a run manifest. Pass one `--model MODEL_ID=PATH` argument for
+each baseline or ablation.
+
+```bash
+PYTHONPATH=src python3 scripts/run_evaluation.py \
+  --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json \
+  --cutoff t1 \
+  --model b0_most_popular=artifacts/rankings/b0_t1.jsonl \
+  --model t0_trustrec=artifacts/rankings/t0_t1.jsonl \
+  --run-id t5-1-video-games-t1-seed07 \
+  --output reports/generated/t5-1-video-games-t1-seed07.json
+```
+
 ```bash
 python3 scripts/run_ranking_baselines.py \
   --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json \

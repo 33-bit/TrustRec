@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "snapshot_id": "video_games-full-d6c4efeb74aa",
+  "dataset_hash": "0b990d349f917c8b864a17a729f73f83314829b78d7307073d6bd0a644404043",
+  "cutoff_timestamp": "2019-01-13T04:24:39.377000+00:00",
+  "configuration_hash": "t5-2-demo-configuration-v1",
+  "model_hashes": {
+    "b0_most_popular": "t5-2-demo-b0-model-v1",
+    "t0_trustrec": "t5-2-demo-t0-model-v1"
+  },
+  "users": [
+    {
+      "user_id": "demo-user-low-history",
+      "history_count": 2,
+      "history_item_ids": ["demo-history-1", "demo-history-2"],
+      "learned_aspect_weights": {
+        "gameplay": 0.6,
+        "graphics": 0.25,
+        "story": 0.15
+      }
+    }
+  ],
+  "items": [
+    {
+      "item_id": "demo-item-a",
+      "title": "Aperture Arcade",
+      "key_aspects": ["gameplay", "story"],
+      "aspect_scores": {
+        "gameplay": 0.9,
+        "graphics": 0.4,
+        "story": 0.65
+      }
+    },
+    {
+      "item_id": "demo-item-b",
+      "title": "Neon Tactics",
+      "key_aspects": ["graphics", "gameplay"],
+      "aspect_scores": {
+        "gameplay": 0.62,
+        "graphics": 0.95,
+        "story": 0.45
+      }
+    },
+    {
+      "item_id": "demo-item-c",
+      "title": "Clockwork Valley",
+      "key_aspects": ["story", "gameplay"],
+      "aspect_scores": {
+        "gameplay": 0.74,
+        "graphics": 0.3,
+        "story": 0.92
+      }
+    }
+  ],
+  "rankings": {
+    "b0_most_popular": {
+      "demo-user-low-history": [
+        {
+          "item_id": "demo-item-a",
+          "rank": 1,
+          "total_score": 0.84,
+          "component_scores": {
+            "popularity": 0.84
+          }
+        },
+        {
+          "item_id": "demo-item-c",
+          "rank": 2,
+          "total_score": 0.7,
+          "component_scores": {
+            "popularity": 0.7
+          }
+        },
+        {
+          "item_id": "demo-item-b",
+          "rank": 3,
+          "total_score": 0.65,
+          "component_scores": {
+            "popularity": 0.65
+          }
+        }
+      ]
+    },
+    "t0_trustrec": {
+      "demo-user-low-history": [
+        {
+          "item_id": "demo-item-a",
+          "rank": 1,
+          "total_score": 0.7664,
+          "aspect_weight": 0.32,
+          "support": 0.85,
+          "component_scores": {
+            "mf": 0.34,
+            "graph": 0.2,
+            "aspect": 0.2264
+          }
+        },
+        {
+          "item_id": "demo-item-c",
+          "rank": 2,
+          "total_score": 0.6902,
+          "aspect_weight": 0.32,
+          "support": 0.08,
+          "component_scores": {
+            "mf": 0.3,
+            "graph": 0.18,
+            "aspect": 0.2102
+          }
+        },
+        {
+          "item_id": "demo-item-b",
+          "rank": 3,
+          "total_score": 0.6766,
+          "aspect_weight": 0.32,
+          "support": 0.42,
+          "component_scores": {
+            "mf": 0.26,
+            "graph": 0.2,
+            "aspect": 0.2166
+          }
+        }
+      ]
+    }
+  },
+  "evidence": [
+    {
+      "item_id": "demo-item-a",
+      "aspect": "gameplay",
+      "review_id": "demo-review-a1",
+      "sentiment": "positive",
+      "support": 0.78,
+      "text": "The combat loop stays engaging after many hours.",
+      "timestamp": "2018-08-14T10:00:00+00:00"
+    },
+    {
+      "item_id": "demo-item-b",
+      "aspect": "graphics",
+      "review_id": "demo-review-b1",
+      "sentiment": "positive",
+      "support": 0.46,
+      "text": "The neon effects look sharp on a large screen.",
+      "timestamp": "2018-09-12T10:00:00+00:00"
+    },
+    {
+      "item_id": "demo-item-b",
+      "aspect": "graphics",
+      "review_id": "demo-review-b2",
+      "sentiment": "negative",
+      "support": 0.46,
+      "text": "The bright effects make some scenes hard to read.",
+      "timestamp": "2018-10-03T10:00:00+00:00"
+    },
+    {
+      "item_id": "demo-item-c",
+      "aspect": "story",
+      "review_id": "demo-review-c1",
+      "sentiment": "positive",
+      "support": 0.12,
+      "text": "The final chapter has a warm ending.",
+      "timestamp": "2018-11-21T10:00:00+00:00"
+    }
+  ],
+  "metrics": [
+    {
+      "metric": "ndcg@10",
+      "value": 0.412,
+      "split_role": "recommendation_validation",
+      "run_id": "t5-2-demo-run",
+      "model_id": "t0_trustrec",
+      "model_hash": "t5-2-demo-t0-model-v1"
+    }
+  ]
+}

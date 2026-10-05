@@ -12,12 +12,32 @@ The team completed T2.1 by rebuilding and validating the 100-unit LLM developmen
 
 The team completed T2.2 with an independent frozen `llm_pseudo_test` split from the full snapshot. It contains 100 units and 189 aspect labels. The manifest excludes pilot reviews and duplicate groups. It locks source, prompt, model, and artifact hashes. The validator reported 100 valid units.
 
+## Completed evaluation work
+
+The team completed T5.1 with pure ranking metrics, paired user bootstrap
+intervals, temporal case construction, popularity and sparse-history slices,
+lineage validation, and a JSON Lines evaluation runner. Fixture tests cover
+the metric formulas, set equality, exclusion reasons, and manifest hashes.
+
+The full-category evaluation command is recorded in [T5.1](../tasks/t5_1-evaluation.md).
+Generated Parquet tables and model ranking files remain external to Git, so
+full Video Games metric values are not stored in this repository.
+
+## Completed demo work
+
+The team completed T5.2 with a prepared-artifact service and a Streamlit view.
+The view selects a low-history user, snapshot, model, K, and temporary aspect
+priorities. It compares baseline and TrustRec rankings, shows score parts,
+shows source evidence and support states, and keeps lineage fields visible.
+The checked-in fallback bundle has SHA-256
+`841ba49dd421b1f350bf370b15dfceff5550c1edd5bbc7d73f80c5daefea3285`.
+The fallback is synthetic and does not support a production metric claim.
+
 ## Open work
 
 NLP consistency results are recorded in [T2.3](../tasks/t2_3-nlp-baselines.md).
 T4.1 provides snapshot-scoped evidence profiles, shared hybrid normalization,
 H0, and T0. T4.2 provides claim selection, abstention, and deterministic
-evidence-removal audit artifacts. Ranking metrics, bootstrap intervals,
-latency, and demo results are pending.
+evidence-removal audit artifacts. T5.3 remains open.
 
 No final human gold dataset exists. Manual labeling is not required for the Amazon Reviews 2023 corpus. Recommendation results must use real Amazon temporal interactions and ratings.

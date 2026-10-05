@@ -1,8 +1,12 @@
 [protocol]
 name = "global-temporal-v1"
+protocol_version = "evaluation-v1"
 primary_metric = "ndcg@10"
 ks = [5, 10, 20]
 positive_target_rating = 4
+target_split = "recommendation_test"
+candidate_rule = "known_items_before_cutoff_minus_user_history"
+ranking_artifact_format = "jsonl_per_user"
 
 [slices]
 user_history = ["1-2", "3-5", ">5"]
@@ -18,4 +22,3 @@ confidence_level = 0.95
 [explanations]
 audit_recommendations = 100
 max_claims = 200
-

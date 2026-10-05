@@ -2,4 +2,10 @@ model_id = "b3_ppr"
 module = "graph.personalized_pagerank"
 metric_protocol = "global-temporal-v1"
 damping = 0.85
-
+positive_threshold = 4
+max_iter = 100
+tol = 1e-12
+cutoff_rule = "timestamp_strictly_before"
+edge_rule = "positive_ratings_only"
+dangling_rule = "restart_mass_to_user"
+tie_break = "item_id_ascending"

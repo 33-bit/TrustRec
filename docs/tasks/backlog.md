@@ -12,7 +12,7 @@
 | T2.2 | done | [Freeze an independent LLM pseudo-test split and lock the model, prompt, and version manifest](t2_2-llm-pseudo-test.md) | T2.1 | owners 2–3 | [`t2_2_llm_pseudo_test.manifest.json`](t2_2_llm_pseudo_test.manifest.json) freezes 100 units and blocks tuning |
 | T2.3 | done | [Implement aspect and sentiment baselines](t2_3-nlp-baselines.md) | T2.2 | owner 2 | [`t2_3_nlp_baselines.manifest.json`](t2_3_nlp_baselines.manifest.json), predictions, consistency metrics, and error samples are exported |
 | T3.1 | done | [Implement popularity and item kNN](t3_1-ranking-baselines.md) | T1.2 | owner 3 | shared candidate contract; output: `src/trustrec/recommenders/{contracts,popularity,item_knn}.py` |
-| T3.2 | planned | Implement BPR MF and PPR | T3.1 | owner 3 | seed-controlled artifacts and component scores exist |
+| T3.2 | done | Implement BPR MF and PPR | T3.1 | owner 3 | seed-controlled artifacts and component scores exist |
 | T4.1 | planned | Implement evidence aggregation and adaptive gate | T2.3,T3.2 | owner 2 | fixed and adaptive hybrids share normalization and tuning budget |
 | T4.2 | planned | Implement explanation and faithfulness checks | T4.1 | owner 2 | claims cite evidence and removal tests are logged |
 | T5.1 | planned | Run baseline, ablation, and sparse-history evaluation | T4.2 | owner 1 | metrics, bootstrap intervals, and slice counts are versioned |

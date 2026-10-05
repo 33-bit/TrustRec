@@ -2,15 +2,24 @@ import json
 
 import pytest
 
+from trustrec.graph import PersonalizedPageRankRanker
 from trustrec.recommenders import (
+    BPRMFRanker,
     CandidateSet,
     ItemKNNRanker,
     PopularityRanker,
     build_candidate_set,
 )
 
+RANKER_TYPES = [
+    PopularityRanker,
+    ItemKNNRanker,
+    BPRMFRanker,
+    PersonalizedPageRankRanker,
+]
 
-@pytest.mark.parametrize("ranker_type", [PopularityRanker, ItemKNNRanker])
+
+@pytest.mark.parametrize("ranker_type", RANKER_TYPES)
 def test_baselines_use_first_event_for_repeated_pairs(ranker_type) -> None:
     rows = [
         {"review_id": "r2", "user_id": "v", "item_id": "a", "rating": 5, "timestamp": 2},
@@ -24,7 +33,7 @@ def test_baselines_use_first_event_for_repeated_pairs(ranker_type) -> None:
     assert [(item.item_id, item.total_score) for item in result.items] == [("b", 1.0), ("a", 0.0)]
 
 
-@pytest.mark.parametrize("ranker_type", [PopularityRanker, ItemKNNRanker])
+@pytest.mark.parametrize("ranker_type", RANKER_TYPES)
 def test_baselines_reject_reviewed_items_even_when_history_is_omitted(ranker_type) -> None:
     ranker = ranker_type().fit([{"user_id": "u", "item_id": "a", "rating": 1, "timestamp": 1}], 10)
 
@@ -32,7 +41,7 @@ def test_baselines_reject_reviewed_items_even_when_history_is_omitted(ranker_typ
         ranker.rank(CandidateSet("u", "snap-1", 10, ("a",)))
 
 
-@pytest.mark.parametrize("ranker_type", [PopularityRanker, ItemKNNRanker])
+@pytest.mark.parametrize("ranker_type", RANKER_TYPES)
 def test_baselines_reject_items_outside_pre_cutoff_catalog(ranker_type) -> None:
     ranker = ranker_type().fit([{"user_id": "v", "item_id": "a", "rating": 5, "timestamp": 10}], 10)
 
@@ -40,7 +49,7 @@ def test_baselines_reject_items_outside_pre_cutoff_catalog(ranker_type) -> None:
         ranker.rank(CandidateSet("u", "snap-1", 10, ("a",)))
 
 
-@pytest.mark.parametrize("ranker_type", [PopularityRanker, ItemKNNRanker])
+@pytest.mark.parametrize("ranker_type", RANKER_TYPES)
 def test_future_rows_do_not_change_fitted_hash_or_scores(ranker_type) -> None:
     past = [
         {"user_id": "u", "item_id": "h", "rating": 5, "timestamp": 1},
@@ -61,7 +70,7 @@ def test_future_rows_do_not_change_fitted_hash_or_scores(ranker_type) -> None:
     assert before.items[0].item_id == "a"
 
 
-@pytest.mark.parametrize("ranker_type", [PopularityRanker, ItemKNNRanker])
+@pytest.mark.parametrize("ranker_type", RANKER_TYPES)
 def test_snapshot_bound_models_refuse_a_different_snapshot(ranker_type) -> None:
     rows = [{"user_id": "v", "item_id": "a", "rating": 5, "timestamp": 1}]
     ranker = ranker_type().fit(rows, 10, snapshot_id="snap-1")
@@ -84,7 +93,7 @@ def test_neighborless_history_reports_popularity_fallback() -> None:
     assert all(item.component_scores["knn"] == 0.0 for item in result.items)
 
 
-@pytest.mark.parametrize("ranker_type", [PopularityRanker, ItemKNNRanker])
+@pytest.mark.parametrize("ranker_type", RANKER_TYPES)
 def test_top_k_preserves_complete_candidate_contract(ranker_type) -> None:
     rows = [
         {"user_id": "v", "item_id": "c", "rating": 2, "timestamp": 1},

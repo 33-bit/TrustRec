@@ -6,11 +6,14 @@ Use `make snapshot-full` to scan the full Video Games review and metadata files.
 
 Use `scripts/build_llm_pseudo_test.py` to rebuild the held-out source selection. Pass the full snapshot manifest, pilot JSONL path, and output path. Use `scripts/validate_llm_pseudo_test.py` to make sure that the frozen records match their manifest and source snapshot.
 
-Use `scripts/run_ranking_baselines.py` to run B0 or B1 from a prepared
+Use `scripts/run_ranking_baselines.py` to run B0 through B3 from a prepared
 snapshot. The command reads the `train_interactions` or
 `fit_interactions` artifact named by the cutoff and writes a JSON result
 with snapshot, dataset, cutoff, configuration, source artifact, and model
 hashes.
+
+The command also runs B2 BPR MF and B3 personalized PageRank. B2 uses seed
+7 when no seed is supplied. B3 uses damping 0.85 when no damping is supplied.
 
 ```bash
 python3 scripts/run_ranking_baselines.py \

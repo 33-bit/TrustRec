@@ -4,5 +4,10 @@ metric_protocol = "global-temporal-v1"
 embedding_dimensions = 64
 learning_rate = 0.001
 regularization = 0.0001
+positive_threshold = 4
+epochs = 50
+negative_samples = 1
+cutoff_rule = "timestamp_strictly_before"
+negative_rule = "unknown_items_only"
+tie_break = "item_id_ascending"
 seed = 7
-

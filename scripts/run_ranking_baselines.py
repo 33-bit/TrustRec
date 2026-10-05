@@ -1,4 +1,4 @@
-"""Run one T3.1 ranking baseline from a snapshot manifest."""
+"""Run one T3.1 or T3.2 ranking baseline from a snapshot manifest."""
 
 from __future__ import annotations
 
@@ -10,6 +10,8 @@ from typing import Any
 
 import pyarrow.parquet as pq
 
+from trustrec.graph.personalized_pagerank import rank_personalized_pagerank
+from trustrec.recommenders.bpr_mf import rank_bpr_mf
 from trustrec.recommenders.contracts import (
     build_candidate_set,
     stable_model_hash,
@@ -17,7 +19,7 @@ from trustrec.recommenders.contracts import (
 from trustrec.recommenders.item_knn import rank_item_knn
 from trustrec.recommenders.popularity import rank_popularity
 
-MODEL_IDS = ("b0_most_popular", "b1_item_knn")
+MODEL_IDS = ("b0_most_popular", "b1_item_knn", "b2_bpr_mf", "b3_ppr")
 ARTIFACT_BY_CUTOFF = {"t0": "train_interactions", "t1": "fit_interactions"}
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -71,6 +73,14 @@ def run_baseline(
     output_path: Path,
     positive_threshold: float = 4.0,
     neighbor_limit: int = 0,
+    embedding_dimensions: int = 64,
+    learning_rate: float = 0.001,
+    regularization: float = 0.0001,
+    epochs: int = 50,
+    negative_samples: int = 1,
+    damping: float = 0.85,
+    max_iter: int = 100,
+    tol: float = 1e-12,
     seed: int | None = None,
     k: int | None = None,
 ) -> dict[str, Any]:
@@ -82,6 +92,7 @@ def run_baseline(
         raise ValueError(f"unsupported cutoff_name: {cutoff_name}")
     if neighbor_limit < 0:
         raise ValueError("neighbor_limit cannot be negative")
+    effective_seed = 7 if model_id == "b2_bpr_mf" and seed is None else seed
     manifest = _load_manifest(manifest_path)
     cutoff_timestamp = manifest["cutoffs"].get(cutoff_name)
     if not cutoff_timestamp:
@@ -113,12 +124,38 @@ def run_baseline(
             seed=seed,
             k=k,
         )
-    else:
+    elif model_id == "b1_item_knn":
         result = rank_item_knn(
             interactions,
             candidates,
             positive_threshold=positive_threshold,
             n_neighbors=neighbor_limit or None,
+            snapshot_id=manifest["snapshot_id"],
+            seed=seed,
+            k=k,
+        )
+    elif model_id == "b2_bpr_mf":
+        result = rank_bpr_mf(
+            interactions,
+            candidates,
+            embedding_dimensions=embedding_dimensions,
+            learning_rate=learning_rate,
+            regularization=regularization,
+            epochs=epochs,
+            negative_samples=negative_samples,
+            positive_threshold=positive_threshold,
+            snapshot_id=manifest["snapshot_id"],
+            seed=effective_seed,
+            k=k,
+        )
+    else:
+        result = rank_personalized_pagerank(
+            interactions,
+            candidates,
+            damping=damping,
+            positive_threshold=positive_threshold,
+            max_iter=max_iter,
+            tol=tol,
             snapshot_id=manifest["snapshot_id"],
             seed=seed,
             k=k,
@@ -129,7 +166,15 @@ def run_baseline(
             "cutoff_name": cutoff_name,
             "positive_threshold": positive_threshold,
             "neighbor_limit": neighbor_limit,
-            "seed": seed,
+            "embedding_dimensions": embedding_dimensions,
+            "learning_rate": learning_rate,
+            "regularization": regularization,
+            "epochs": epochs,
+            "negative_samples": negative_samples,
+            "damping": damping,
+            "max_iter": max_iter,
+            "tol": tol,
+            "seed": effective_seed,
             "k": k,
         }
     )
@@ -143,7 +188,7 @@ def run_baseline(
                 "configuration_hash": configuration_hash,
                 "user_id": user_id,
                 "cutoff_name": cutoff_name,
-                "seed": seed,
+                "seed": effective_seed,
                 "k": k,
             }
         )[:16],
@@ -153,7 +198,7 @@ def run_baseline(
         "source_artifact_sha256": source_artifact_hash,
         "source_cutoff_timestamp": cutoff_timestamp,
         "cutoff_name": cutoff_name,
-        "seed": seed,
+        "seed": effective_seed,
         "configuration": result.configuration,
         "configuration_hash": configuration_hash,
         "model_hash": result.model_hash,
@@ -177,6 +222,14 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--positive-threshold", type=float, default=4.0)
     parser.add_argument("--neighbor-limit", type=int, default=0)
+    parser.add_argument("--embedding-dimensions", type=int, default=64)
+    parser.add_argument("--learning-rate", type=float, default=0.001)
+    parser.add_argument("--regularization", type=float, default=0.0001)
+    parser.add_argument("--epochs", type=_positive_integer, default=50)
+    parser.add_argument("--negative-samples", type=_positive_integer, default=1)
+    parser.add_argument("--damping", type=float, default=0.85)
+    parser.add_argument("--max-iter", type=_positive_integer, default=100)
+    parser.add_argument("--tol", type=float, default=1e-12)
     parser.add_argument("--seed", type=int)
     parser.add_argument("--k", type=_positive_integer)
     args = parser.parse_args()
@@ -188,6 +241,14 @@ def main() -> None:
         output_path=args.output,
         positive_threshold=args.positive_threshold,
         neighbor_limit=args.neighbor_limit,
+        embedding_dimensions=args.embedding_dimensions,
+        learning_rate=args.learning_rate,
+        regularization=args.regularization,
+        epochs=args.epochs,
+        negative_samples=args.negative_samples,
+        damping=args.damping,
+        max_iter=args.max_iter,
+        tol=args.tol,
         seed=args.seed,
         k=args.k,
     )

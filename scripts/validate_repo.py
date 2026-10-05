@@ -44,6 +44,7 @@ REQUIRED_FILES = (
     "docs/superpowers/specs/2026-10-06-t5-3-report-bundle-design.md",
     "docs/plans/t5_3-report-bundle.md",
     "docs/tasks/t5_3-report-bundle.md",
+    "docs/tasks/t5_3_reproducibility.manifest.json",
     "app/demo_bundle.manifest.json",
 )
 

@@ -1,0 +1,60 @@
+{
+  "bundle_id": "t5-3-trustrec-report-v1",
+  "claim_ids": [
+    "snapshot-interaction-count",
+    "snapshot-item-count",
+    "nlp-dictionary-aspect-consistency",
+    "nlp-svm-aspect-consistency",
+    "nlp-evidence-offset-validity",
+    "demo-fallback-is-synthetic",
+    "recommendation-results-pending"
+  ],
+  "code_revision": "92aaf73",
+  "command_ids": [
+    "build_full_snapshot",
+    "run_nlp_baselines",
+    "run_recommendation_evaluation",
+    "run_demo_smoke",
+    "package_t5_3"
+  ],
+  "external_artifacts": [
+    "recommendation_manifest",
+    "recommendation_metrics"
+  ],
+  "output_directory": "reports/generated/t5-3",
+  "output_sha256": {
+    "SHA256SUMS": "7185f3461b37e44eac75fc9787623b8f846f256afd3b90c2e6f3535afdd59172",
+    "bundle.manifest.json": "47c0d2dd51b7a3222eb1f2f78589befcc3338c51da2657188dc15124a43c65ee",
+    "claims.json": "b2320d025df6d53c02c1cbe314b265d522e457562093b05d5c30e420c53f0c24",
+    "commands.md": "a547870508e4e80fd4bc1b1102150f7b30ba68476b1edd32b85c60721db09dc4",
+    "report.md": "52d4d0442c7a7a858f80ab07db7213493065ff3b080aac9b0da36f1c0b3f7cad",
+    "results.csv": "07601c10dd307636358feef9847e4ef0e8a2dac9b53953ce2e13601ab7179360",
+    "specification.json": "5f5698544eaed1e03ec42bd43c3d90a3563dbba8b0d0ac667311b78643dbe1ed"
+  },
+  "reproduce_command": "PYTHONPATH=src python3 scripts/package_report.py --spec configs/report_bundle.json --output-dir reports/generated/t5-3",
+  "run_ids": [
+    "video_games-full-d6c4efeb74aa",
+    "t2.3-nlp-baselines-v1",
+    "t5-2-demo-run",
+    "t5-1-video-games-t1-seed07"
+  ],
+  "schema_version": 1,
+  "source_sha256": {
+    "demo_bundle": "841ba49dd421b1f350bf370b15dfceff5550c1edd5bbc7d73f80c5daefea3285",
+    "demo_manifest": "58e21eeebeed9f528ff7f62c68fdd28bacb62cf9ae191e50ec2dc17b15284b9c",
+    "dependency_lock": "caa3c7a16e535ac60c34c1df6b3b11e6bb5cfbbdd309e1d8fec1efde287d2547",
+    "evaluation_configuration": "afa8ce982ea53d7875b1d15cc38ecec537621cf3646f4c95d2cbcb8e8777ffcf",
+    "nlp_manifest": "51e2aa8ddc05acfbdef753bb89a8e03d24aa45a2a94b4da459114eb9ac1167e8",
+    "nlp_metrics": "3406431874712d24a9eb1493ed8c57142fe1bbcc627b4395a57166a1f0e34eb8",
+    "python_version": "bb90877c5ee8c4703cfd03421e92ef2a17a10b67ecc822524baeea4c8da3dc9f",
+    "recommendation_manifest": "unavailable",
+    "recommendation_metrics": "unavailable",
+    "research_claims_policy": "b6f6d5dbe09c8b0061a62271a84cee70877604b1e8230698b1e2bf23b410f886",
+    "snapshot_manifest": "27330c427abf9c4f78cda934f2576ba3ed37b2f891ee6c150ef4adcbd136b10c"
+  },
+  "specification_path": "configs/report_bundle.json",
+  "specification_sha256": "5f5698544eaed1e03ec42bd43c3d90a3563dbba8b0d0ac667311b78643dbe1ed",
+  "status": "complete",
+  "task": "T5.3",
+  "verify_command": "PYTHONPATH=src python3 scripts/package_report.py --verify-bundle reports/generated/t5-3"
+}

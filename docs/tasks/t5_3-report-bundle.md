@@ -21,6 +21,7 @@ The command is [`scripts/package_report.py`](../../scripts/package_report.py).
 The source library is [`src/trustrec/reporting/bundle.py`](../../src/trustrec/reporting/bundle.py).
 The machine-readable contract is [`schemas/report-bundle.schema.json`](../../schemas/report-bundle.schema.json).
 The generated bundle belongs in ignored `reports/generated/t5-3/`.
+The checked-in bundle record is [`t5_3_reproducibility.manifest.json`](t5_3_reproducibility.manifest.json).
 The bundle contains `report.md`, `claims.json`, `results.csv`, `commands.md`, `specification.json`, `bundle.manifest.json`, `SHA256SUMS`, and small source copies.
 
 Run the command from the repository root:

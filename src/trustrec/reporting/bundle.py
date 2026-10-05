@@ -264,6 +264,11 @@ def _manifest_summary(
     metric_bootstrap = metric_source.get("bootstrap", {})
     if not isinstance(metric_bootstrap, Mapping):
         raise BundleError(f"run {run['run_id']} metrics bootstrap must be an object")
+    llm_provenance = metric_source.get("pseudo_test_label_provenance") or source.get(
+        "pseudo_test_label_provenance", {}
+    )
+    if not isinstance(llm_provenance, Mapping):
+        raise BundleError(f"run {run['run_id']} LLM provenance must be an object")
     return {
         "run_id": str(run["run_id"]),
         "evidence_role": run["evidence_role"],
@@ -285,6 +290,7 @@ def _manifest_summary(
         "code_revision": source.get("code_revision")
         or metric_source.get("code_revision")
         or "unavailable",
+        "llm_provenance": dict(llm_provenance),
         "cutoff_timestamp": metric_source.get("cutoff_timestamp")
         or source.get("cutoff_timestamp")
         or source.get("source_cutoff_timestamp")
@@ -398,10 +404,10 @@ def _validate_run(
             metrics_path = manifest.get("metrics_path")
             if not isinstance(metrics_path, str):
                 raise BundleError(f"run {run_id} is missing metrics_path")
-            manifest_metrics_path = Path(metrics_path)
-            if not manifest_metrics_path.is_absolute():
-                manifest_metrics_path = repository_root / manifest_metrics_path
-            if manifest_metrics_path.resolve() != artifacts[metrics_id]["resolved_path"]:
+            _, manifest_metrics_path = _resolve_path(
+                repository_root, metrics_path, f"run {run_id}.metrics_path"
+            )
+            if manifest_metrics_path != artifacts[metrics_id]["resolved_path"]:
                 raise BundleError(f"run {run_id} metrics_path does not match its metrics artifact")
         if role == "llm_pseudo_test":
             frozen = manifest.get(
@@ -413,6 +419,17 @@ def _validate_run(
             )
             if frozen is not True or tuning is not False:
                 raise BundleError(f"run {run_id} does not lock the frozen pseudo-test")
+            required_provenance = {
+                "model_id",
+                "model_revision",
+                "prompt_version",
+                "temperature",
+                "seed",
+            }
+            if not required_provenance <= set(
+                _manifest_summary(run, manifest, metrics)["llm_provenance"]
+            ):
+                raise BundleError(f"run {run_id} is missing LLM label provenance")
         if role == "recommendation_test" and metrics is not None:
             if not metrics.get("candidate_rule") or not metrics.get("target_rule"):
                 raise BundleError(f"run {run_id} metrics must record candidate and target rules")
@@ -436,6 +453,10 @@ def _validate_run(
             }
             if candidate_hashes != {evaluation["candidate_set_hash"]}:
                 raise BundleError(f"run {run_id} models do not share candidate set")
+            if evaluation.get("eligible_users") not in eligible_counts:
+                raise BundleError(
+                    f"run {run_id} top-level eligible-user count does not match models"
+                )
     return _manifest_summary(run, manifest, metrics), manifest, metrics
 
 
@@ -560,6 +581,24 @@ def _validate_claims(
                     "uncertainty_method": summary["bootstrap"].get("method", "unavailable"),
                     "units": claim.get("units", "ratio" if claim.get("metric") else "count"),
                     "declared_model_seeds": summary["seeds"],
+                    "candidate_rule": summary["candidate_rule"],
+                    "target_rule": summary["target_rule"],
+                    "slices": summary["model_results"]
+                    .get(claim.get("model_id"), {})
+                    .get("slices", "unavailable"),
+                    "resource": summary["model_results"]
+                    .get(claim.get("model_id"), {})
+                    .get("resource", "unavailable"),
+                    "exclusions": summary["evaluation"].get("exclusions", "unavailable"),
+                    "llm_model_id": summary["llm_provenance"].get("model_id", "unavailable"),
+                    "llm_model_revision": summary["llm_provenance"].get(
+                        "model_revision", "unavailable"
+                    ),
+                    "llm_prompt_version": summary["llm_provenance"].get(
+                        "prompt_version", "unavailable"
+                    ),
+                    "llm_temperature": summary["llm_provenance"].get("temperature", "unavailable"),
+                    "llm_seed": summary["llm_provenance"].get("seed", "unavailable"),
                 }
             )
         rendered = dict(claim)
@@ -624,6 +663,16 @@ def _render_report(
                 )
             lines.append("Evidence: " + "; ".join(evidence_links) + ".")
             lines.append("Lineage: " + ", ".join(links) + ".")
+            provenance = claim.get("run", {}).get("llm_provenance", {})
+            if provenance:
+                lines.append(
+                    "LLM label provenance: "
+                    f"model `{provenance.get('model_id', 'unavailable')}`, "
+                    f"revision `{provenance.get('model_revision', 'unavailable')}`, "
+                    f"prompt `{provenance.get('prompt_version', 'unavailable')}`, "
+                    f"temperature `{provenance.get('temperature', 'unavailable')}`, "
+                    f"seed `{provenance.get('seed', 'unavailable')}`."
+                )
             lines.append("")
     lines.extend(["## Sources and environment", ""])
     for record in source_records:
@@ -673,6 +722,16 @@ def _write_results(path: Path, rows: Sequence[Mapping[str, Any]]) -> None:
         "uncertainty_method",
         "units",
         "declared_model_seeds",
+        "candidate_rule",
+        "target_rule",
+        "slices",
+        "resource",
+        "exclusions",
+        "llm_model_id",
+        "llm_model_revision",
+        "llm_prompt_version",
+        "llm_temperature",
+        "llm_seed",
     )
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=columns, lineterminator="\n")
@@ -709,6 +768,25 @@ def _file_hashes(root: Path, *, exclude: set[str]) -> dict[str, str]:
         for path in sorted(root.rglob("*"))
         if path.is_file() and path.relative_to(root).as_posix() not in exclude
     }
+
+
+def _resolve_bundle_path(bundle_dir: Path, value: Any, field: str) -> Path:
+    if not isinstance(value, str) or not value or Path(value).is_absolute():
+        raise BundleError(f"{field} must be a relative path inside the bundle")
+    relative = Path(value)
+    if ".." in relative.parts:
+        raise BundleError(f"{field} must stay inside the bundle")
+    cursor = bundle_dir
+    for part in relative.parts:
+        cursor /= part
+        if cursor.is_symlink():
+            raise BundleError(f"{field} cannot use a symbolic link")
+    candidate = (bundle_dir / relative).resolve()
+    try:
+        candidate.relative_to(bundle_dir.resolve())
+    except ValueError as error:
+        raise BundleError(f"{field} must stay inside the bundle") from error
+    return candidate
 
 
 def _write_checksums(output_dir: Path) -> None:
@@ -832,7 +910,7 @@ def verify_bundle(bundle_dir: Path) -> dict[str, Any]:
     if not isinstance(generated, Mapping):
         raise BundleError("bundle manifest generated_files must be an object")
     for relative, expected in generated.items():
-        path = bundle_dir / relative
+        path = _resolve_bundle_path(bundle_dir, relative, "generated file path")
         if not path.is_file() or _sha256(path) != expected:
             raise BundleError(f"bundle generated file hash does not match: {relative}")
     source_records = manifest.get("sources", {})
@@ -843,10 +921,12 @@ def verify_bundle(bundle_dir: Path) -> dict[str, Any]:
             raise BundleError(f"bundle source record is invalid: {artifact_id}")
         bundle_path = record.get("bundle_path")
         if bundle_path:
-            source = bundle_dir / str(bundle_path)
+            source = _resolve_bundle_path(bundle_dir, bundle_path, "source bundle_path")
             if not source.is_file() or _sha256(source) != record.get("sha256"):
                 raise BundleError(f"bundle source hash does not match: {artifact_id}")
-    checksum_path = bundle_dir / str(manifest.get("checksums_path", "SHA256SUMS"))
+    checksum_path = _resolve_bundle_path(
+        bundle_dir, manifest.get("checksums_path", "SHA256SUMS"), "checksums_path"
+    )
     if not checksum_path.is_file():
         raise FileNotFoundError(f"bundle checksums do not exist: {checksum_path}")
     lines = [
@@ -864,7 +944,7 @@ def verify_bundle(bundle_dir: Path) -> dict[str, Any]:
         if relative in inventory:
             raise BundleError(f"bundle checksum inventory repeats: {relative}")
         inventory[relative] = digest
-        path = bundle_dir / relative
+        path = _resolve_bundle_path(bundle_dir, relative, "checksum path")
         if not path.is_file() or _sha256(path) != digest:
             raise BundleError(f"bundle checksum does not match: {relative}")
     expected_inventory = {

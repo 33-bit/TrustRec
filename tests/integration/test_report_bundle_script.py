@@ -30,7 +30,7 @@ def _write_fixture(root: Path) -> Path:
                 "model_seeds": [7],
                 "candidate_rule": "known_items_before_cutoff_minus_user_history",
                 "target_rule": "first_new_item_with_rating_at_least_4",
-                "evaluation": {"candidate_set_hash": "c" * 64},
+                "evaluation": {"candidate_set_hash": "c" * 64, "eligible_users": 2},
                 "models": {
                     "b0": {
                         "metrics": {"ndcg@10": 0.5},

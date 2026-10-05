@@ -32,8 +32,16 @@ def _write_fixture(root: Path) -> Path:
                 "protocol_version": "evaluation-v1",
                 "cutoff_name": "t1",
                 "cutoff_timestamp": "1970-01-02T00:00:00Z",
-                "bootstrap": {"method": "paired_user_bootstrap", "confidence_level": 0.95},
-                "evaluation": {"candidate_set_hash": "c" * 64, "eligible_users": 2},
+                "bootstrap": {
+                    "method": "paired_user_bootstrap",
+                    "confidence_level": 0.95,
+                    "samples": 20,
+                },
+                "evaluation": {
+                    "candidate_set_hash": "c" * 64,
+                    "eligible_users": 2,
+                    "exclusions": {"no_candidates": 1},
+                },
                 "models": {
                     "b0": {
                         "metrics": {"ndcg@10": 0.5},
@@ -46,6 +54,8 @@ def _write_fixture(root: Path) -> Path:
                         },
                         "counts": {"eligible_users": 2},
                         "metadata": {"candidate_set_hash": "c" * 64},
+                        "slices": {"history": {"1-2": {"ndcg@10": 0.4}}},
+                        "resource": {"latency_ms_mean": 2.5, "memory_bytes_mean": 12.0},
                     }
                 },
             },
@@ -164,6 +174,9 @@ def test_package_report_resolves_claims_and_writes_reproduction_links(tmp_path: 
     assert row["ci_lower"] == "0.25"
     assert row["ci_upper"] == "0.75"
     assert row["uncertainty_method"] == "paired_user_bootstrap"
+    assert json.loads(row["slices"]) == {"history": {"1-2": {"ndcg@10": 0.4}}}
+    assert json.loads(row["resource"]) == {"latency_ms_mean": 2.5, "memory_bytes_mean": 12.0}
+    assert json.loads(row["exclusions"]) == {"no_candidates": 1}
 
 
 def test_package_report_is_deterministic_for_the_same_inputs(tmp_path: Path) -> None:
@@ -235,7 +248,10 @@ def test_package_report_rejects_path_traversal_and_duplicate_claim_ids(tmp_path:
         ("metrics_cutoff_mismatch", "cutoffs"),
         ("missing_metrics_hash", "metrics.*hash"),
         ("metrics_path_mismatch", "metrics_path"),
+        ("absolute_metrics_path", "relative path"),
+        ("parent_metrics_path", "repository root"),
         ("candidate_hash_mismatch", "candidate"),
+        ("top_level_count_mismatch", "eligible-user"),
         ("missing_model_count", "eligible"),
         ("synthetic_measurement", "synthetic"),
         ("design_measurement", "design"),
@@ -272,8 +288,14 @@ def test_package_report_rejects_broken_claim_lineage(tmp_path: Path, case: str, 
         manifest["artifact_sha256"] = {}
     elif case == "metrics_path_mismatch":
         manifest["metrics_path"] = "other-metrics.json"
+    elif case == "absolute_metrics_path":
+        manifest["metrics_path"] = str(metrics_path)
+    elif case == "parent_metrics_path":
+        manifest["metrics_path"] = "../metrics.json"
     elif case == "candidate_hash_mismatch":
         metrics["models"]["b0"]["metadata"]["candidate_set_hash"] = "b" * 64
+    elif case == "top_level_count_mismatch":
+        metrics["evaluation"]["eligible_users"] = 3
     elif case == "missing_model_count":
         metrics["models"]["b0"].pop("counts")
     elif case == "synthetic_measurement":
@@ -334,6 +356,63 @@ def test_package_report_records_missing_external_artifacts_without_inventing_val
 
     assert result["sources"]["raw_table"]["exists"] is False
     assert result["sources"]["raw_table"]["expected_sha256"] == "e" * 64
+
+
+def test_package_report_preserves_frozen_llm_provenance(tmp_path: Path) -> None:
+    from trustrec.reporting.bundle import package_report
+
+    spec = _write_fixture(tmp_path)
+    payload = json.loads(spec.read_text())
+    metrics_path = tmp_path / "metrics.json"
+    metrics = json.loads(metrics_path.read_text())
+    metrics["pseudo_test_label_provenance"] = {
+        "model_id": "gpt-6.1-sol",
+        "model_revision": "revision-1",
+        "prompt_version": "t2.2-llm-v1",
+        "temperature": "unavailable",
+        "seed": "unavailable",
+    }
+    metrics_path.write_text(json.dumps(metrics))
+    manifest_path = tmp_path / "run.manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest.update({"frozen_pseudo_test": True, "pseudo_test_tuning_allowed": False})
+    manifest["artifact_sha256"]["metrics"] = _sha256(metrics_path)
+    manifest_path.write_text(json.dumps(manifest))
+    for record in payload["artifacts"]:
+        record["sha256"] = _sha256(tmp_path / record["path"])
+    payload["runs"][0]["evidence_role"] = "llm_pseudo_test"
+    spec.write_text(json.dumps(payload))
+
+    output = tmp_path / "bundle"
+    package_report(spec, output, repository_root=tmp_path, code_revision="fixture")
+
+    claims = json.loads((output / "claims.json").read_text())
+    run = claims["claims"][0]["run"]
+    assert run["llm_provenance"] == metrics["pseudo_test_label_provenance"]
+    with (output / "results.csv").open(encoding="utf-8", newline="") as handle:
+        row = next(csv.DictReader(handle))
+    assert row["llm_model_id"] == "gpt-6.1-sol"
+    assert row["llm_prompt_version"] == "t2.2-llm-v1"
+    assert row["llm_model_revision"] == "revision-1"
+    assert row["llm_seed"] == "unavailable"
+
+
+def test_verify_bundle_rejects_source_path_outside_bundle(tmp_path: Path) -> None:
+    from trustrec.reporting.bundle import package_report, verify_bundle
+
+    spec = _write_fixture(tmp_path)
+    output = tmp_path / "bundle"
+    package_report(spec, output, repository_root=tmp_path, code_revision="fixture")
+    outside = tmp_path / "outside.txt"
+    outside.write_text("outside", encoding="utf-8")
+    manifest_path = output / "bundle.manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["sources"]["run_manifest"]["bundle_path"] = "../outside.txt"
+    manifest["sources"]["run_manifest"]["sha256"] = _sha256(outside)
+    manifest_path.write_text(json.dumps(manifest))
+
+    with pytest.raises(ValueError, match="inside the bundle"):
+        verify_bundle(output)
 
 
 def test_bundle_verification_requires_a_complete_checksum_inventory(tmp_path: Path) -> None:

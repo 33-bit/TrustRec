@@ -15,6 +15,12 @@ hashes.
 The command also runs B2 BPR MF and B3 personalized PageRank. B2 uses seed
 7 when no seed is supplied. B3 uses damping 0.85 when no damping is supplied.
 
+Use `scripts/build_evidence_profiles.py` to aggregate flat evidence JSON Lines
+before a cutoff. The output keeps source, snapshot, configuration, and model
+hashes. Use `scripts/run_hybrid.py` to combine prepared MF, graph, and aspect
+scores for `h0_fixed_hybrid` or `t0_trustrec`. Both models require the same
+candidate IDs and use the shared percentile normalizer.
+
 ```bash
 python3 scripts/run_ranking_baselines.py \
   --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json \

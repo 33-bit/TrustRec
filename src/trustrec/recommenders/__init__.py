@@ -9,8 +9,20 @@ from .contracts import (
     coerce_interactions,
     first_interactions_before_cutoff,
 )
+from .fixed_hybrid import FixedHybrid, FixedHybridRanker, rank_fixed_hybrid
+from .hybrid import (
+    HybridScore,
+    adaptive_gate_scores,
+    adaptive_trustrec_details,
+    adaptive_trustrec_scores,
+    fixed_hybrid_details,
+    fixed_hybrid_scores,
+    normalize_scores,
+    percentile_normalize,
+)
 from .item_knn import ItemKNN, ItemKNNRanker, cosine_similarity, rank_item_knn
 from .popularity import MostPopularRanker, PopularityRanker, rank_most_popular, rank_popularity
+from .trustrec import TrustRec, TrustRecRanker, rank_trustrec
 
 __all__ = [
     "CandidateSet",
@@ -31,4 +43,18 @@ __all__ = [
     "rank_bpr_mf",
     "rank_most_popular",
     "rank_popularity",
+    "FixedHybrid",
+    "FixedHybridRanker",
+    "HybridScore",
+    "TrustRec",
+    "TrustRecRanker",
+    "adaptive_gate_scores",
+    "adaptive_trustrec_details",
+    "adaptive_trustrec_scores",
+    "fixed_hybrid_details",
+    "fixed_hybrid_scores",
+    "normalize_scores",
+    "percentile_normalize",
+    "rank_fixed_hybrid",
+    "rank_trustrec",
 ]

@@ -19,3 +19,10 @@ They use `no_candidates` when the candidate set is empty. Item kNN uses
 BPR MF uses `no_positive_history` for a user without positive history and
 falls back to positive popularity. It keeps low-rated history items out of
 negative samples. Its result includes the MF score for every candidate.
+
+T4.1 adds H0 and T0 in `fixed_hybrid.py` and `trustrec.py`. The shared
+normalizer in `hybrid.py` converts every component to percentile ranks inside
+the same candidate set. H0 combines MF, graph, and aspect ranks with fixed
+weights. T0 uses the history and evidence support gate from the ranking
+contract. `HybridScore` keeps normalized values, contributions, gate, and
+support for later explanation audits.

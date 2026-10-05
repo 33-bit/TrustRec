@@ -9,7 +9,7 @@
     "demo-fallback-is-synthetic",
     "recommendation-results-pending"
   ],
-  "code_revision": "92aaf73",
+  "code_revision": "387f123",
   "command_ids": [
     "build_full_snapshot",
     "run_nlp_baselines",
@@ -23,12 +23,12 @@
   ],
   "output_directory": "reports/generated/t5-3",
   "output_sha256": {
-    "SHA256SUMS": "7185f3461b37e44eac75fc9787623b8f846f256afd3b90c2e6f3535afdd59172",
-    "bundle.manifest.json": "47c0d2dd51b7a3222eb1f2f78589befcc3338c51da2657188dc15124a43c65ee",
-    "claims.json": "b2320d025df6d53c02c1cbe314b265d522e457562093b05d5c30e420c53f0c24",
+    "SHA256SUMS": "cc18ba0b9665cd5963272a715c05fa6a0b5cd1dfb4089ab9127ef5dc3435d446",
+    "bundle.manifest.json": "e1bff14816b103826eff5264daa1b463e2af3eec96e99c345b1ecb261427bec8",
+    "claims.json": "aad416071046ce12abf2dd52731d13a1721e08a0a37275ff8c9e11a9e1cad2c5",
     "commands.md": "a547870508e4e80fd4bc1b1102150f7b30ba68476b1edd32b85c60721db09dc4",
-    "report.md": "52d4d0442c7a7a858f80ab07db7213493065ff3b080aac9b0da36f1c0b3f7cad",
-    "results.csv": "07601c10dd307636358feef9847e4ef0e8a2dac9b53953ce2e13601ab7179360",
+    "report.md": "90b8a8f8b029ba6444a2e81cd14801c0c4395971d976c6d44d0820098f3d3854",
+    "results.csv": "16e031074cdbc7dba87aac9ddfc9486321850a1b1adf97e06949b17568722ff1",
     "specification.json": "5f5698544eaed1e03ec42bd43c3d90a3563dbba8b0d0ac667311b78643dbe1ed"
   },
   "reproduce_command": "PYTHONPATH=src python3 scripts/package_report.py --spec configs/report_bundle.json --output-dir reports/generated/t5-3",

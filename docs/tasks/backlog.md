@@ -17,4 +17,4 @@
 | T4.2 | done | [Implement explanation and faithfulness checks](t4_2-explanation-faithfulness.md) | T4.1 | owner 2 | claims cite evidence and removal tests are logged |
 | T5.1 | done | [Run baseline, ablation, and sparse-history evaluation](t5_1-evaluation.md) | T4.2 | owner 1 | metrics, bootstrap intervals, and slice counts are versioned |
 | T5.2 | done | [Build the five-minute Streamlit demo](t5_2-streamlit-demo.md) | T4.2 | owner 3 | demo follows `docs/specs/demo-contract.md` and the AppTest smoke run passes |
-| T5.3 | planned | Package report and reproducibility bundle | T5.1,T5.2 | all | every claim links to a manifest and command |
+| T5.3 | done | [Package report and reproducibility bundle](t5_3-report-bundle.md) | T5.1,T5.2 | all | every claim links to a manifest and command |

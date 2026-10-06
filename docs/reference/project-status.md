@@ -33,6 +33,11 @@ The checked-in fallback bundle has SHA-256
 `841ba49dd421b1f350bf370b15dfceff5550c1edd5bbc7d73f80c5daefea3285`.
 The fallback is synthetic and does not support a production metric claim.
 
+The team completed T5.3 with a deterministic report packager. The package
+records claim pointers, run manifests, commands, source hashes, and external
+artifact states. The default report includes the snapshot and NLP evidence,
+the synthetic demo marker, and the missing recommendation result as a limit.
+
 ## Open work
 
 NLP consistency results are recorded in [T2.3](../tasks/t2_3-nlp-baselines.md).
@@ -40,4 +45,4 @@ T4.1 provides snapshot-scoped evidence profiles, shared hybrid normalization,
 H0, and T0. T4.2 provides claim selection, abstention, and deterministic
 evidence-removal audit artifacts. T5.3 remains open.
 
-No final human gold dataset exists. Manual labeling is not required for the Amazon Reviews 2023 corpus. Recommendation results must use real Amazon temporal interactions and ratings.
+No final human gold dataset exists. Manual labeling is not required for the Amazon Reviews 2023 corpus. Recommendation results must use real Amazon temporal interactions and ratings. The full recommendation metric table remains external until the T5.1 ranking inputs are available.

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "task": "T5.2",
+  "run_id": "t5-2-demo-run",
+  "status": "complete",
+  "snapshot_id": "video_games-full-d6c4efeb74aa",
+  "dataset_hash": "0b990d349f917c8b864a17a729f73f83314829b78d7307073d6bd0a644404043",
+  "cutoff_timestamp": "2019-01-13T04:24:39.377000+00:00",
+  "configuration_hash": "t5-2-demo-configuration-v1",
+  "model_hashes": {
+    "b0_most_popular": "t5-2-demo-b0-model-v1",
+    "t0_trustrec": "t5-2-demo-t0-model-v1"
+  },
+  "bundle_path": "app/demo_bundle.json",
+  "bundle_sha256": "841ba49dd421b1f350bf370b15dfceff5550c1edd5bbc7d73f80c5daefea3285",
+  "synthetic": true
+}

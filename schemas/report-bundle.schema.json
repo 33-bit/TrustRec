@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trustrec.local/schemas/report-bundle.schema.json",
+  "title": "TrustRec report and reproducibility bundle",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "title",
+    "status",
+    "code_revision",
+    "specification_path",
+    "specification_sha256",
+    "sources",
+    "commands",
+    "runs",
+    "claims",
+    "generated_files",
+    "checksums_path"
+  ],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "bundle_id": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "status": {"enum": ["complete"]},
+    "code_revision": {"type": "string", "minLength": 1},
+    "specification_path": {"type": "string", "minLength": 1},
+    "specification_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sources": {"type": "object", "additionalProperties": {"$ref": "#/$defs/source"}},
+    "commands": {"type": "array", "items": {"$ref": "#/$defs/command"}},
+    "runs": {"type": "array", "items": {"$ref": "#/$defs/run"}},
+    "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
+    "generated_files": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    },
+    "checksums_path": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["artifact_id", "path", "availability", "exists", "sha256", "expected_sha256", "hash_status"],
+      "properties": {
+        "artifact_id": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "availability": {"enum": ["required", "external"]},
+        "exists": {"type": "boolean"},
+        "sha256": {"type": ["string", "null"]},
+        "expected_sha256": {"type": ["string", "null"]},
+        "hash_status": {"type": "string", "minLength": 1},
+        "bundle_path": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "command": {
+      "type": "object",
+      "required": ["command_id", "command"],
+      "properties": {
+        "command_id": {"type": "string", "minLength": 1},
+        "command": {"type": "string", "minLength": 1},
+        "prerequisites": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "evidence_role",
+        "command_id",
+        "manifest_artifact",
+        "metrics_artifact",
+        "availability",
+        "status",
+        "snapshot_id",
+        "dataset_hash",
+        "cutoffs",
+        "protocol_version",
+        "seed",
+        "seeds",
+        "configuration_hash",
+        "model_hashes",
+        "code_revision"
+      ],
+      "properties": {
+        "run_id": {"type": "string", "minLength": 1},
+        "evidence_role": {"enum": ["snapshot", "recommendation_test", "llm_pseudo_test", "synthetic", "design"]},
+        "command_id": {"type": "string", "minLength": 1},
+        "manifest_artifact": {"type": "string", "minLength": 1},
+        "metrics_artifact": {"type": ["string", "null"]},
+        "availability": {"enum": ["available", "external_pending"]},
+        "status": {"type": "string", "minLength": 1},
+        "snapshot_id": {"type": "string", "minLength": 1},
+        "dataset_hash": {"type": "string", "minLength": 1},
+        "cutoffs": {"type": "object"},
+        "protocol_version": {"type": "string", "minLength": 1},
+        "seed": {},
+        "seeds": {"type": "array"},
+        "configuration_hash": {"type": "string", "minLength": 1},
+        "model_hashes": {"type": "object"},
+        "code_revision": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "claim": {
+      "type": "object",
+      "required": ["claim_id", "kind", "statement", "run_id", "evidence"],
+      "properties": {
+        "claim_id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["measured", "design", "limitation", "synthetic"]},
+        "statement": {"type": "string", "minLength": 1},
+        "run_id": {"type": "string", "minLength": 1},
+        "evidence": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/evidence"}}
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["artifact_id", "label", "pointer"],
+      "properties": {
+        "artifact_id": {"type": "string", "minLength": 1},
+        "label": {"type": "string", "minLength": 1},
+        "pointer": {"type": "string"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

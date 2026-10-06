@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install format lint test check demo validate leakage snapshot-full
+.PHONY: install format lint test check demo report validate leakage snapshot-full
 
 install:
 	$(PYTHON) -m pip install --requirement requirements.lock
@@ -32,3 +32,6 @@ snapshot-full:
 
 demo:
 	streamlit run app/streamlit_app.py
+
+report:
+	PYTHONPATH=src $(PYTHON) scripts/package_report.py --spec configs/report_bundle.json --output-dir reports/generated/t5-3

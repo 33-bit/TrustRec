@@ -1,0 +1,248 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "snapshot_manifest",
+      "path": "docs/tasks/t1_2_full_snapshot_manifest.json",
+      "sha256": "27330c427abf9c4f78cda934f2576ba3ed37b2f891ee6c150ef4adcbd136b10c"
+    },
+    {
+      "artifact_id": "nlp_manifest",
+      "path": "docs/tasks/t2_3_nlp_baselines.manifest.json",
+      "sha256": "51e2aa8ddc05acfbdef753bb89a8e03d24aa45a2a94b4da459114eb9ac1167e8"
+    },
+    {
+      "artifact_id": "nlp_metrics",
+      "copy": false,
+      "path": "artifacts/t2_3/metrics.json",
+      "sha256": "3406431874712d24a9eb1493ed8c57142fe1bbcc627b4395a57166a1f0e34eb8"
+    },
+    {
+      "artifact_id": "demo_manifest",
+      "path": "app/demo_bundle.manifest.json",
+      "sha256": "58e21eeebeed9f528ff7f62c68fdd28bacb62cf9ae191e50ec2dc17b15284b9c"
+    },
+    {
+      "artifact_id": "demo_bundle",
+      "copy": true,
+      "path": "app/demo_bundle.json",
+      "sha256": "841ba49dd421b1f350bf370b15dfceff5550c1edd5bbc7d73f80c5daefea3285"
+    },
+    {
+      "artifact_id": "recommendation_manifest",
+      "availability": "external",
+      "path": "reports/generated/t5-1-video-games-t1-seed07.manifest.json"
+    },
+    {
+      "artifact_id": "recommendation_metrics",
+      "availability": "external",
+      "path": "reports/generated/t5-1-video-games-t1-seed07.json"
+    }
+  ],
+  "bundle_id": "t5-3-trustrec-report-v1",
+  "claims": [
+    {
+      "claim_id": "snapshot-interaction-count",
+      "evidence": [
+        {
+          "artifact_id": "snapshot_manifest",
+          "label": "interaction rows",
+          "pointer": "/row_counts/interactions"
+        }
+      ],
+      "kind": "measured",
+      "metric": "interaction_count",
+      "run_id": "video_games-full-d6c4efeb74aa",
+      "statement": "The full Video Games snapshot contains 1717097 interaction rows.",
+      "units": "rows"
+    },
+    {
+      "claim_id": "snapshot-item-count",
+      "evidence": [
+        {
+          "artifact_id": "snapshot_manifest",
+          "label": "unique items",
+          "pointer": "/unique_counts/items"
+        }
+      ],
+      "kind": "measured",
+      "metric": "item_count",
+      "run_id": "video_games-full-d6c4efeb74aa",
+      "statement": "The full Video Games snapshot contains 49749 unique items after the metadata join.",
+      "units": "items"
+    },
+    {
+      "claim_id": "nlp-dictionary-aspect-consistency",
+      "evidence": [
+        {
+          "artifact_id": "nlp_metrics",
+          "label": "dictionary aspect micro F1",
+          "pointer": "/metrics/dictionary/aspect/micro_f1"
+        }
+      ],
+      "kind": "measured",
+      "metric": "aspect_micro_f1",
+      "model_id": "dictionary",
+      "run_id": "t2.3-nlp-baselines-v1",
+      "statement": "The dictionary baseline aspect micro F1 is 0.5085 on the frozen LLM pseudo-test.",
+      "units": "ratio"
+    },
+    {
+      "claim_id": "nlp-svm-aspect-consistency",
+      "evidence": [
+        {
+          "artifact_id": "nlp_metrics",
+          "label": "TF-IDF plus Linear SVM aspect micro F1",
+          "pointer": "/metrics/tfidf_linear_svm/aspect/micro_f1"
+        }
+      ],
+      "kind": "measured",
+      "metric": "aspect_micro_f1",
+      "model_id": "tfidf_linear_svm",
+      "run_id": "t2.3-nlp-baselines-v1",
+      "statement": "The TF-IDF plus Linear SVM baseline aspect micro F1 is 0.0920 on the frozen LLM pseudo-test.",
+      "units": "ratio"
+    },
+    {
+      "claim_id": "nlp-evidence-offset-validity",
+      "evidence": [
+        {
+          "artifact_id": "nlp_metrics",
+          "label": "dictionary evidence offset validity",
+          "pointer": "/metrics/dictionary/evidence/valid_rate"
+        }
+      ],
+      "kind": "measured",
+      "metric": "evidence_offset_valid_rate",
+      "model_id": "dictionary",
+      "run_id": "t2.3-nlp-baselines-v1",
+      "statement": "The dictionary baseline produced valid evidence offsets for every eligible prediction row.",
+      "units": "ratio"
+    },
+    {
+      "claim_id": "demo-fallback-is-synthetic",
+      "evidence": [
+        {
+          "artifact_id": "demo_manifest",
+          "label": "synthetic demo marker",
+          "pointer": "/synthetic"
+        }
+      ],
+      "kind": "synthetic",
+      "metric": "demo_lineage",
+      "run_id": "t5-2-demo-run",
+      "statement": "The checked-in demo fallback supports the presenter flow with synthetic records and does not support a production metric claim.",
+      "units": "record"
+    },
+    {
+      "claim_id": "recommendation-results-pending",
+      "evidence": [
+        {
+          "artifact_id": "recommendation_manifest",
+          "label": "external recommendation manifest",
+          "pointer": "/status"
+        }
+      ],
+      "kind": "limitation",
+      "metric": "recommendation_results",
+      "run_id": "t5-1-video-games-t1-seed07",
+      "statement": "The full recommendation metric table remains external because the temporal ranking inputs are not present in this checkout.",
+      "units": "availability"
+    }
+  ],
+  "commands": [
+    {
+      "command": "PYTHONPATH=src python3 scripts/build_full_snapshot.py --category Video_Games",
+      "command_id": "build_full_snapshot",
+      "prerequisites": [
+        "Place the Amazon Reviews 2023 source files at the paths named by the snapshot configuration.",
+        "Keep the source snapshot outside Git."
+      ]
+    },
+    {
+      "command": "PYTHONPATH=src python3 scripts/run_nlp_baselines.py && PYTHONPATH=src python3 scripts/validate_nlp_baselines.py",
+      "command_id": "run_nlp_baselines",
+      "prerequisites": [
+        "Create the full Video Games snapshot first.",
+        "Keep the frozen pseudo-test input unchanged."
+      ]
+    },
+    {
+      "command": "PYTHONPATH=src python3 scripts/run_evaluation.py --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json --cutoff t1 --model b0_most_popular=artifacts/rankings/b0_t1.jsonl --model b1_item_knn=artifacts/rankings/b1_t1.jsonl --model b2_bpr_mf=artifacts/rankings/b2_t1_seed07.jsonl --model b3_ppr=artifacts/rankings/b3_t1.jsonl --model h0_fixed_hybrid=artifacts/rankings/h0_t1.jsonl --model t0_trustrec=artifacts/rankings/t0_t1.jsonl --run-id t5-1-video-games-t1-seed07 --output reports/generated/t5-1-video-games-t1-seed07.json --manifest reports/generated/t5-1-video-games-t1-seed07.manifest.json --reference-model b0_most_popular",
+      "command_id": "run_recommendation_evaluation",
+      "prerequisites": [
+        "Create the full snapshot first.",
+        "Create all six ranking JSON Lines files with the same users, candidates, targets, and cutoff.",
+        "Run the command once for each final seed."
+      ]
+    },
+    {
+      "command": "python3 -m pytest tests/unit/test_demo.py -q",
+      "command_id": "run_demo_smoke",
+      "prerequisites": [
+        "Run the command from the repository root.",
+        "Use app/demo_bundle.json as the synthetic fallback."
+      ]
+    },
+    {
+      "command": "PYTHONPATH=src python3 scripts/package_report.py --spec configs/report_bundle.json --output-dir reports/generated/t5-3",
+      "command_id": "package_t5_3",
+      "prerequisites": [
+        "Run the source experiments before publishing a production report.",
+        "Keep completed manifests unchanged."
+      ]
+    }
+  ],
+  "environment_files": [
+    {
+      "artifact_id": "python_version",
+      "path": ".python-version",
+      "sha256": "bb90877c5ee8c4703cfd03421e92ef2a17a10b67ecc822524baeea4c8da3dc9f"
+    },
+    {
+      "artifact_id": "dependency_lock",
+      "path": "requirements.lock",
+      "sha256": "caa3c7a16e535ac60c34c1df6b3b11e6bb5cfbbdd309e1d8fec1efde287d2547"
+    },
+    {
+      "artifact_id": "evaluation_configuration",
+      "path": "configs/evaluation.toml",
+      "sha256": "afa8ce982ea53d7875b1d15cc38ecec537621cf3646f4c95d2cbcb8e8777ffcf"
+    },
+    {
+      "artifact_id": "research_claims_policy",
+      "path": "docs/reference/research-claims.md",
+      "sha256": "b6f6d5dbe09c8b0061a62271a84cee70877604b1e8230698b1e2bf23b410f886"
+    }
+  ],
+  "runs": [
+    {
+      "command_id": "build_full_snapshot",
+      "evidence_role": "snapshot",
+      "manifest_artifact": "snapshot_manifest",
+      "run_id": "video_games-full-d6c4efeb74aa"
+    },
+    {
+      "command_id": "run_nlp_baselines",
+      "evidence_role": "llm_pseudo_test",
+      "manifest_artifact": "nlp_manifest",
+      "metrics_artifact": "nlp_metrics",
+      "run_id": "t2.3-nlp-baselines-v1"
+    },
+    {
+      "command_id": "run_demo_smoke",
+      "evidence_role": "synthetic",
+      "manifest_artifact": "demo_manifest",
+      "run_id": "t5-2-demo-run"
+    },
+    {
+      "availability": "external_pending",
+      "command_id": "run_recommendation_evaluation",
+      "evidence_role": "recommendation_test",
+      "manifest_artifact": "recommendation_manifest",
+      "metrics_artifact": "recommendation_metrics",
+      "run_id": "t5-1-video-games-t1-seed07"
+    }
+  ],
+  "schema_version": 1,
+  "title": "TrustRec measured results and reproducibility bundle"
+}

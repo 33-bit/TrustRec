@@ -3,23 +3,16 @@
 from __future__ import annotations
 
 import math
-from collections import Counter, defaultdict
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from numbers import Integral
 from typing import Any
 
 import numpy as np
+from scipy import sparse
 
-from trustrec.recommenders.contracts import (
-    CandidateSet,
-    RankedItem,
-    RankingResult,
-    Timestamp,
-    first_interactions_before_cutoff,
-    stable_model_hash,
-    timestamp_value,
-)
-from trustrec.recommenders.popularity import _rating_value, _validate_k
+from trustrec.recommenders.base import MatrixRanker
+from trustrec.recommenders.contracts import CandidateSet, RankingResult
+from trustrec.recommenders.matrix import InteractionMatrix
 
 
 def _positive_integer(name: str, value: int) -> int:
@@ -28,10 +21,17 @@ def _positive_integer(name: str, value: int) -> int:
     return int(value)
 
 
-class PersonalizedPageRankRanker:
-    """Rank candidates by PageRank mass reached from one user node."""
+class PersonalizedPageRankRanker(MatrixRanker):
+    """Rank candidates by PageRank mass reached from one user node.
+
+    The graph has one node per user and item with at least one positive edge.
+    Power iteration runs as sparse matrix products, several restart users at a
+    time, and each user's column stops when it meets ``tol``.
+    """
 
     model_id = "b3_ppr"
+    score_component = "ppr"
+    zero_score_fallback = "no_graph_path"
 
     def __init__(
         self,
@@ -40,250 +40,144 @@ class PersonalizedPageRankRanker:
         max_iter: int = 100,
         tol: float = 1e-12,
         seed: int | None = None,
+        batch_size: int = 64,
     ) -> None:
         if not math.isfinite(float(damping)) or not 0 <= damping < 1:
             raise ValueError("damping must be finite and in [0, 1)")
-        if not math.isfinite(float(positive_threshold)):
-            raise ValueError("positive_threshold must be finite")
         if not math.isfinite(float(tol)) or tol <= 0:
             raise ValueError("tol must be finite and positive")
+        super().__init__(positive_threshold=positive_threshold, seed=seed)
         self.damping = float(damping)
-        self.positive_threshold = float(positive_threshold)
         self.max_iter = _positive_integer("max_iter", max_iter)
         self.tol = float(tol)
-        self.seed = seed
-        self._user_to_items: dict[str, frozenset[str]] = {}
-        self._item_to_users: dict[str, frozenset[str]] = {}
-        self._history_by_user: dict[str, frozenset[str]] = {}
-        self._popularity: Counter[str] = Counter()
-        self._catalog: frozenset[str] = frozenset()
-        self._cutoff_timestamp: Timestamp | None = None
-        self._snapshot_id: str | None = None
-        self._model_hash: str | None = None
+        self.batch_size = _positive_integer("batch_size", batch_size)
+        self._score_cache: dict[str, np.ndarray] = {}
 
-    def fit(
-        self,
-        interactions: Iterable[Mapping[str, Any]] | Any,
-        cutoff_timestamp: Timestamp,
-        snapshot_id: str | None = None,
-    ) -> PersonalizedPageRankRanker:
-        """Build positive graph edges from first pre-cutoff events."""
-
-        rows = first_interactions_before_cutoff(interactions, cutoff_timestamp)
-        user_to_items: defaultdict[str, set[str]] = defaultdict(set)
-        item_to_users: defaultdict[str, set[str]] = defaultdict(set)
-        history_by_user: dict[str, set[str]] = {}
-        popularity: Counter[str] = Counter()
-        for row in rows:
-            user_id = row["user_id"]
-            item_id = row["item_id"]
-            history_by_user.setdefault(user_id, set()).add(item_id)
-            rating = _rating_value(row)
-            if rating is None or rating < self.positive_threshold:
-                continue
-            if item_id in user_to_items[user_id]:
-                continue
-            user_to_items[user_id].add(item_id)
-            item_to_users[item_id].add(user_id)
-            popularity[item_id] += 1
-        self._user_to_items = {
-            user_id: frozenset(item_ids) for user_id, item_ids in user_to_items.items()
-        }
-        self._item_to_users = {
-            item_id: frozenset(user_ids) for item_id, user_ids in item_to_users.items()
-        }
-        self._history_by_user = {
-            user_id: frozenset(item_ids) for user_id, item_ids in history_by_user.items()
-        }
-        self._popularity = popularity
-        self._catalog = frozenset(row["item_id"] for row in rows)
-        self._cutoff_timestamp = cutoff_timestamp
-        self._snapshot_id = snapshot_id
-        self._model_hash = stable_model_hash(
-            {
-                "model_id": self.model_id,
-                "damping": self.damping,
-                "positive_threshold": self.positive_threshold,
-                "max_iter": self.max_iter,
-                "tol": self.tol,
-                "seed": self.seed,
-                "cutoff_timestamp": timestamp_value(cutoff_timestamp),
-                "snapshot_id": snapshot_id,
-                "catalog": sorted(self._catalog),
-                "user_to_items": {
-                    user_id: sorted(item_ids)
-                    for user_id, item_ids in sorted(self._user_to_items.items())
-                },
-            }
-        )
-        return self
-
-    @property
-    def model_hash(self) -> str:
-        if self._model_hash is None:
-            raise RuntimeError(
-                "PersonalizedPageRankRanker must be fitted before reading model_hash"
-            )
-        return self._model_hash
-
-    def rank(self, candidate_set: CandidateSet, k: int | None = None) -> RankingResult:
-        """Rank the exact candidates from a shared candidate set."""
-
-        self._require_fitted(candidate_set)
-        _validate_k(k)
-        self._validate_candidate_set(candidate_set)
-        if not candidate_set.candidate_item_ids:
-            return self._result(candidate_set, (), "no_candidates")
-        positive_history = self._positive_history(candidate_set)
-        if not positive_history:
-            return self._popularity_result(candidate_set, k, "no_positive_history")
-
-        scores = self._scores_for_user(candidate_set.user_id)
-        scored = [
-            (item_id, float(scores.get(item_id, 0.0)))
-            for item_id in candidate_set.candidate_item_ids
-        ]
-        if not any(score > 0.0 for _, score in scored):
-            return self._popularity_result(candidate_set, k, "no_graph_path")
-        scored.sort(key=lambda row: (-row[1], row[0]))
-        if k is not None:
-            scored = scored[:k]
-        items = tuple(
-            RankedItem(
-                item_id=item_id,
-                rank=rank,
-                total_score=score,
-                component_scores={"ppr": score},
-            )
-            for rank, (item_id, score) in enumerate(scored, start=1)
-        )
-        return self._result(candidate_set, items, None)
-
-    def _scores_for_user(self, user_id: str) -> dict[str, float]:
-        positive_items = self._user_to_items.get(user_id, frozenset())
-        if not positive_items:
-            return {}
-        nodes = tuple(
-            [("user", user_id) for user_id in sorted(self._user_to_items)]
-            + [("item", item_id) for item_id in sorted(self._item_to_users)]
-        )
-        node_index = {node: index for index, node in enumerate(nodes)}
-        adjacency: dict[tuple[str, str], tuple[tuple[str, str], ...]] = {}
-        for node_type, node_id in nodes:
-            if node_type == "user":
-                adjacency[(node_type, node_id)] = tuple(
-                    ("item", item_id) for item_id in sorted(self._user_to_items[node_id])
-                )
-            else:
-                adjacency[(node_type, node_id)] = tuple(
-                    ("user", user_id) for user_id in sorted(self._item_to_users[node_id])
-                )
-        restart_node = ("user", user_id)
-        if restart_node not in node_index:
-            return {}
-        scores = np.zeros(len(nodes), dtype=np.float64)
-        scores[node_index[restart_node]] = 1.0
-        restart_index = node_index[restart_node]
-        for _ in range(self.max_iter):
-            updated = np.zeros(len(nodes), dtype=np.float64)
-            updated[restart_index] = 1.0 - self.damping
-            dangling_mass = 0.0
-            for node, node_position in node_index.items():
-                probability = scores[node_position]
-                neighbors = adjacency[node]
-                if not neighbors:
-                    dangling_mass += probability
-                    continue
-                share = self.damping * probability / len(neighbors)
-                for neighbor in neighbors:
-                    updated[node_index[neighbor]] += share
-            updated[restart_index] += self.damping * dangling_mass
-            if float(np.max(np.abs(updated - scores))) <= self.tol:
-                scores = updated
-                break
-            scores = updated
+    def _configuration(self) -> dict[str, Any]:
         return {
-            item_id: float(scores[node_index[("item", item_id)]])
-            for item_id in self._item_to_users
-            if ("item", item_id) in node_index
+            "damping": self.damping,
+            "positive_threshold": self.positive_threshold,
+            "max_iter": self.max_iter,
+            "tol": self.tol,
+            "cutoff_rule": "timestamp_strictly_before",
+            "edge_rule": "positive_ratings_only",
+            "dangling_rule": "restart_mass_to_user",
+            "tie_break": "item_id_ascending",
         }
 
-    def _positive_history(self, candidate_set: CandidateSet) -> frozenset[str]:
-        fitted_history = self._user_to_items.get(candidate_set.user_id, frozenset())
-        if candidate_set.history_item_ids:
-            return fitted_history & candidate_set.history_item_ids
-        return fitted_history
+    def _hash_configuration(self) -> dict[str, Any]:
+        return {
+            "damping": self.damping,
+            "positive_threshold": self.positive_threshold,
+            "max_iter": self.max_iter,
+            "tol": self.tol,
+        }
 
-    def _popularity_result(
-        self,
-        candidate_set: CandidateSet,
-        k: int | None,
-        fallback_reason: str,
-    ) -> RankingResult:
-        ordered = sorted(
-            candidate_set.candidate_item_ids,
-            key=lambda item_id: (-self._popularity.get(item_id, 0), item_id),
+    def _fit_matrix(self, matrix: InteractionMatrix) -> None:
+        positive = matrix.positive
+        user_degree = np.diff(positive.indptr).astype(np.float64)
+        item_degree = matrix.popularity.astype(np.float64)
+        inverse_user = np.divide(
+            1.0, user_degree, out=np.zeros_like(user_degree), where=user_degree > 0
         )
-        if k is not None:
-            ordered = ordered[:k]
-        items = tuple(
-            RankedItem(
-                item_id=item_id,
-                rank=rank,
-                total_score=float(self._popularity.get(item_id, 0)),
-                component_scores={
-                    "ppr": 0.0,
-                    "popularity": float(self._popularity.get(item_id, 0)),
-                },
+        inverse_item = np.divide(
+            1.0, item_degree, out=np.zeros_like(item_degree), where=item_degree > 0
+        )
+        # Walk steps as pre-scaled sparse matrices:
+        # user -> item is B^T D_u^-1 and item -> user is B D_i^-1.
+        self._item_from_user = (positive.T @ sparse.diags(inverse_user)).tocsr()
+        self._user_from_item = (positive @ sparse.diags(inverse_item)).tocsr()
+        # Users with one positive edge only send an item's mass back to itself,
+        # so their two-step contribution is a diagonal item term.
+        multi = np.flatnonzero(user_degree > 1)
+        single = user_degree == 1
+        self._item_from_multi = self._item_from_user[:, multi].tocsr()
+        self._multi_from_item = self._user_from_item[multi].tocsr()
+        single_counts = np.asarray(positive[single].sum(axis=0)).ravel()
+        self._self_return = single_counts * inverse_item
+        self._score_cache = {}
+
+    def item_scores(self, user_ids: Sequence[str]) -> np.ndarray:
+        """Return PageRank item scores with one column per user.
+
+        Every user must have at least one positive edge. The power iteration
+        ``p_u' = d B D_i^-1 p_i + (1 - d) e_r`` and ``p_i' = d B^T D_u^-1 p_u``
+        starts at ``p_u = e_r``. Item mass therefore follows
+        ``p_i(t) = d^2 M p_i(t - 2) + d (1 - d) v_r`` with ``M = B^T D_u^-1 B D_i^-1``
+        and ``v_r = B^T D_u^-1 e_r``, which this method iterates without
+        storing user mass. Every graph node has an edge, so no dangling mass
+        exists. A column stops at the first step whose change over all user
+        and item nodes is at most ``tol``.
+        """
+
+        matrix = self.matrix
+        restart_users = np.array([matrix.user_index[user_id] for user_id in user_ids])
+        if restart_users.size and (np.diff(matrix.positive.indptr)[restart_users] == 0).any():
+            raise ValueError("every user must have a positive edge in the graph")
+        damping = self.damping
+        restart = self._item_from_user[:, restart_users].toarray()
+        result = np.zeros((matrix.n_items, restart_users.size))
+        active = np.arange(restart_users.size)
+        previous = np.zeros_like(restart)
+        current = damping * restart
+        # Step 1 moves user mass by ``damping`` at the restart node.
+        if damping <= self.tol:
+            result[:, active] = current
+            return result
+        for _ in range(2, self.max_iter + 1):
+            following = (
+                damping
+                * damping
+                * (
+                    self._item_from_multi @ (self._multi_from_item @ previous)
+                    + self._self_return[:, None] * previous
+                )
+                + damping * (1.0 - damping) * restart
             )
-            for rank, item_id in enumerate(ordered, start=1)
-        )
-        return self._result(candidate_set, items, fallback_reason)
+            done = np.abs(following - current).max(axis=0) <= self.tol
+            if done.any():
+                user_change = damping * np.abs(
+                    self._user_from_item @ (current[:, done] - previous[:, done])
+                ).max(axis=0)
+                done[np.flatnonzero(done)[user_change > self.tol]] = False
+            if done.any():
+                result[:, active[done]] = following[:, done]
+                keep = ~done
+                active = active[keep]
+                restart = restart[:, keep]
+                current = current[:, keep]
+                following = following[:, keep]
+                if active.size == 0:
+                    return result
+            previous, current = current, following
+        result[:, active] = current
+        return result
 
-    def _result(
-        self,
-        candidate_set: CandidateSet,
-        items: tuple[RankedItem, ...],
-        fallback_reason: str | None,
-    ) -> RankingResult:
-        return RankingResult(
-            model_id=self.model_id,
-            user_id=candidate_set.user_id,
-            snapshot_id=candidate_set.snapshot_id,
-            cutoff_timestamp=candidate_set.cutoff_timestamp,
-            candidate_item_ids=candidate_set.candidate_item_ids,
-            items=items,
-            configuration={
-                "damping": self.damping,
-                "positive_threshold": self.positive_threshold,
-                "max_iter": self.max_iter,
-                "tol": self.tol,
-                "cutoff_rule": "timestamp_strictly_before",
-                "edge_rule": "positive_ratings_only",
-                "dangling_rule": "restart_mass_to_user",
-                "tie_break": "item_id_ascending",
-            },
-            seed=self.seed,
-            model_hash=self._model_hash or "",
-            fallback_reason=fallback_reason,
-        )
+    def prepare(self, user_ids: Sequence[str]) -> None:
+        """Compute and cache scores for users with positive edges, in batches."""
 
-    def _validate_candidate_set(self, candidate_set: CandidateSet) -> None:
-        if self._snapshot_id is not None and candidate_set.snapshot_id != self._snapshot_id:
-            raise ValueError("candidate snapshot does not match fitted snapshot")
-        user_history = self._history_by_user.get(candidate_set.user_id, frozenset())
-        if set(candidate_set.candidate_item_ids) & user_history:
-            raise ValueError("candidate_item_ids must exclude history items")
-        if set(candidate_set.candidate_item_ids) - self._catalog:
-            raise ValueError("candidate_item_ids must be known before the cutoff")
+        matrix = self.matrix
+        graph_users = [
+            user_id
+            for user_id in user_ids
+            if user_id in matrix.user_index
+            and matrix.positive_indices(user_id).size > 0
+            and user_id not in self._score_cache
+        ]
+        for start in range(0, len(graph_users), self.batch_size):
+            chunk = graph_users[start : start + self.batch_size]
+            scores = self.item_scores(chunk)
+            for column, user_id in enumerate(chunk):
+                self._score_cache[user_id] = scores[:, column].copy()
 
-    def _require_fitted(self, candidate_set: CandidateSet) -> None:
-        if self._cutoff_timestamp is None or self._model_hash is None:
-            raise RuntimeError("PersonalizedPageRankRanker must be fitted before ranking")
-        if timestamp_value(candidate_set.cutoff_timestamp) != timestamp_value(
-            self._cutoff_timestamp
-        ):
-            raise ValueError("candidate cutoff does not match fitted cutoff")
+    def clear_cache(self) -> None:
+        self._score_cache = {}
+
+    def _user_scores(self, user_id: str, positive_items: np.ndarray) -> np.ndarray:
+        cached = self._score_cache.get(user_id)
+        if cached is not None:
+            return cached
+        return self.item_scores([user_id])[:, 0]
 
 
 def rank_personalized_pagerank(
@@ -311,8 +205,3 @@ def rank_personalized_pagerank(
         .fit(interactions, candidate_set.cutoff_timestamp, snapshot_id=snapshot_id)
         .rank(candidate_set, k=k)
     )
-
-
-PPRRanker = PersonalizedPageRankRanker
-PersonalizedPageRank = PersonalizedPageRankRanker
-rank_ppr = rank_personalized_pagerank

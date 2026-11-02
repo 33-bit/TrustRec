@@ -1,6 +1,7 @@
 import pytest
 
 from trustrec.recommenders.hybrid import (
+    adaptive_trustrec_details,
     adaptive_trustrec_scores,
     fixed_hybrid_scores,
     percentile_normalize,
@@ -47,3 +48,25 @@ def test_hybrid_rejects_mismatched_candidates_and_invalid_gate() -> None:
         fixed_hybrid_scores({"a": 1}, {"a": 1}, {"b": 1})
     with pytest.raises(ValueError, match="g_max"):
         adaptive_trustrec_scores({"a": 1}, {"a": 1}, {"a": 1}, {"a": 1}, 0, g_max=1.1)
+
+
+@pytest.mark.parametrize("history_count", [-1, -5, 1.5, True])
+def test_adaptive_details_reject_invalid_history_count(history_count) -> None:
+    components = {"a": 1.0, "b": 0.0}
+    support = {"a": 1.0, "b": 1.0}
+
+    with pytest.raises(ValueError, match="history_count"):
+        adaptive_trustrec_details(components, components, components, support, history_count)
+
+
+def test_adaptive_scores_match_detail_totals() -> None:
+    mf = {"a": 0.9, "b": 0.1, "c": 0.5}
+    graph = {"a": 0.2, "b": 0.8, "c": 0.4}
+    aspect = {"a": 0.0, "b": 0.3, "c": 1.0}
+    support = {"a": 0.2, "b": 0.6, "c": 1.0}
+
+    details = adaptive_trustrec_details(mf, graph, aspect, support, 2, kappa=4.0)
+    scores = adaptive_trustrec_scores(mf, graph, aspect, support, 2, kappa=4.0)
+
+    assert scores == {item_id: detail.total_score for item_id, detail in details.items()}
+    assert all(0.0 <= detail.gate <= 1.0 for detail in details.values())

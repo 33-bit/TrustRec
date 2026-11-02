@@ -18,7 +18,7 @@ make demo
 
 `make install` installs the exact versions in `requirements.lock`. The tested interpreter version is in `.python-version`.
 
-The current demo is a small shell that validates the serving contract. The repository does not include Amazon Reviews files. Put local downloads under `data/raw/`. Create a snapshot manifest and record the dataset hash before you run an experiment.
+`make demo` opens the T5.2 Streamlit flow. Without an external bundle it loads the synthetic presenter bundle in `app/demo_bundle.json`, which does not support a production metric claim. The repository does not include Amazon Reviews files. Put local downloads under `data/raw/`. Create a snapshot manifest and record the dataset hash before you run an experiment.
 
 The full Video Games benchmark snapshot uses `make snapshot-full`. It scans Amazon Reviews 2023 in batches and writes generated tables under `data/processed/`. The reviewable manifest is `docs/tasks/t1_2_full_snapshot_manifest.json`.
 

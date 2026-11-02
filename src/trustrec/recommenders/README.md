@@ -26,3 +26,22 @@ the same candidate set. H0 combines MF, graph, and aspect ranks with fixed
 weights. T0 uses the history and evidence support gate from the ranking
 contract. `HybridScore` keeps normalized values, contributions, gate, and
 support for later explanation audits.
+
+## Scale path (ADR-0014)
+
+`matrix.py` builds one `InteractionMatrix` from the first pre-cutoff event per
+user-item pair. It holds sparse history and positive matrices, positive item
+counts, a data fingerprint, and a catalog hash. Pass an Arrow table or a pandas
+frame for the vectorized path. Pass `matrix=` to `fit` to share one matrix
+across models.
+
+`base.py` holds `MatrixRanker`. It owns candidate validation, fallbacks, and
+the ordering rule. `rank(candidate_set, k)` keeps the `RankingResult`
+contract. `recommend(user_id, k)` returns the top K items from the catalog
+minus the user's history, with the candidate count and signature used by the
+evaluator. `registry.py` builds B0 through B3 from one `BaselineParameters`
+object.
+
+BPR MF trains with mini-batch SGD and summed updates. `batch_size` (default
+1024) is part of the configuration and model hash. Negative samples are drawn
+uniformly from items outside the user's history.

@@ -46,3 +46,12 @@ H0, and T0. T4.2 provides claim selection, abstention, and deterministic
 evidence-removal audit artifacts. T5.3 remains open.
 
 No final human gold dataset exists. Manual labeling is not required for the Amazon Reviews 2023 corpus. Recommendation results must use real Amazon temporal interactions and ratings. The full recommendation metric table remains external until the T5.1 ranking inputs are available.
+
+## Scale work (2026-11-02)
+
+T6.1 makes B0 through B3 and the evaluator run on the full snapshot. See
+[ADR-0014](../adr/0014-sparse-rankers-and-compact-candidates.md) and
+[T6.1](../tasks/t6_1-scalable-rankings.md). BPR MF now trains with mini-batch
+SGD, so its scores differ from earlier per-pair SGD runs. No full Video Games
+ranking or metric file exists yet. Full-corpus aspect evidence (T6.2), batch
+H0 and T0 rows (T6.3), and the full evaluation (T6.4) remain open.

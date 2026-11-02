@@ -1,12 +1,13 @@
 [protocol]
 name = "global-temporal-v1"
-protocol_version = "evaluation-v1"
+protocol_version = "evaluation-v2"
 primary_metric = "ndcg@10"
 ks = [5, 10, 20]
 positive_target_rating = 4
 target_split = "recommendation_test"
 candidate_rule = "known_items_before_cutoff_minus_user_history"
 ranking_artifact_format = "jsonl_per_user"
+candidate_declaration = ["candidate_item_ids", "candidate_signature"]
 
 [slices]
 user_history = ["1-2", "3-5", ">5"]

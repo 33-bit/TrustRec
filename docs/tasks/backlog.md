@@ -18,3 +18,7 @@
 | T5.1 | done | [Run baseline, ablation, and sparse-history evaluation](t5_1-evaluation.md) | T4.2 | owner 1 | metrics, bootstrap intervals, and slice counts are versioned |
 | T5.2 | done | [Build the five-minute Streamlit demo](t5_2-streamlit-demo.md) | T4.2 | owner 3 | demo follows `docs/specs/demo-contract.md` and the AppTest smoke run passes |
 | T5.3 | done | [Package report and reproducibility bundle](t5_3-report-bundle.md) | T5.1,T5.2 | all | every claim links to a manifest and command |
+| T6.1 | done: code and synthetic full-size run | [Make B0–B3 and the evaluator run on the full snapshot](t6_1-scalable-rankings.md) | T3.2,T5.1 | owner 3 | `scripts/run_rankings_batch.py` rows pass `scripts/run_evaluation.py`; ADR-0014 records the changes |
+| T6.2 | todo | Label aspect evidence for the full review corpus before each cutoff | T2.3 | owner 2 | evidence rows for every in-scope review feed `scripts/build_evidence_profiles.py` |
+| T6.3 | todo | Batch H0 and T0 rows from full-catalog component scores | T6.1,T6.2 | owner 3 | H0 and T0 JSON Lines rows pass `scripts/run_evaluation.py` |
+| T6.4 | todo | Run the full Video Games evaluation for every model and seed | T6.1,T6.3 | owner 1 | metrics, manifests, and the T5.3 bundle use real ranking files |

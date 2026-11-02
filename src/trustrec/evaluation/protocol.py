@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections import Counter, defaultdict
 from collections.abc import Collection, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -16,6 +16,7 @@ from trustrec.recommenders.contracts import (
     stable_model_hash,
     timestamp_value,
 )
+from trustrec.recommenders.matrix import candidate_pool_signature, catalog_fingerprint
 
 from .leakage import LeakageError
 from .metrics import (
@@ -38,6 +39,7 @@ EXCLUSION_REASONS = (
     "target_review_overlap",
     "no_candidates",
 )
+CANDIDATE_RULE = "catalog_minus_history"
 
 
 def _as_non_empty_string(value: Any, field: str) -> str:
@@ -91,24 +93,35 @@ def _timestamp_for_error(value: Any) -> float:
 
 @dataclass(frozen=True)
 class EvaluationCase:
-    """One target user with its locked candidate and target sets."""
+    """One target user with its locked candidate pool and target set.
+
+    The candidate pool is the shared pre-cutoff catalog minus the user's
+    history. Cases keep a reference to the shared catalog instead of a copy,
+    so a full snapshot does not hold one catalog-sized list per user.
+    """
 
     user_id: str
-    candidate_item_ids: tuple[str, ...]
+    catalog_item_ids: frozenset[str] = field(repr=False, compare=False)
+    catalog_hash: str
+    history_item_ids: frozenset[str]
     target_item_ids: frozenset[str]
     history_count: int
     history_slice: str
     target_popularity_slices: Mapping[str, frozenset[str]]
+    candidate_count: int = field(init=False)
+    candidate_signature: str = field(init=False)
 
     def __post_init__(self) -> None:
         _as_non_empty_string(self.user_id, "user_id")
-        candidates = tuple(self.candidate_item_ids)
-        if len(candidates) != len(set(candidates)):
-            raise ValueError("candidate_item_ids must be unique")
-        if any(not isinstance(item_id, str) or not item_id for item_id in candidates):
-            raise ValueError("candidate_item_ids must contain non-empty strings")
+        if not isinstance(self.catalog_item_ids, frozenset):
+            raise TypeError("catalog_item_ids must be a frozenset")
+        history = frozenset(self.history_item_ids)
+        if any(not isinstance(item_id, str) or not item_id for item_id in history):
+            raise ValueError("history_item_ids must contain non-empty strings")
         targets = frozenset(self.target_item_ids)
-        if not targets <= set(candidates):
+        object.__setattr__(self, "history_item_ids", history)
+        object.__setattr__(self, "target_item_ids", targets)
+        if not all(self.is_candidate(item_id) for item_id in targets):
             raise ValueError("target_item_ids must be candidate items")
         if isinstance(self.history_count, bool) or self.history_count < 0:
             raise ValueError("history_count must be non-negative")
@@ -121,14 +134,29 @@ class EvaluationCase:
             raise ValueError("invalid target popularity slice")
         if any(not items <= targets for items in groups.values()):
             raise ValueError("target popularity slices must contain target items")
-        object.__setattr__(self, "candidate_item_ids", candidates)
-        object.__setattr__(self, "target_item_ids", targets)
         object.__setattr__(self, "target_popularity_slices", groups)
+        known_history = sum(1 for item_id in history if item_id in self.catalog_item_ids)
+        object.__setattr__(self, "candidate_count", len(self.catalog_item_ids) - known_history)
+        object.__setattr__(
+            self, "candidate_signature", candidate_pool_signature(self.catalog_hash, history)
+        )
+
+    def is_candidate(self, item_id: str) -> bool:
+        return item_id in self.catalog_item_ids and item_id not in self.history_item_ids
+
+    @property
+    def candidate_item_ids(self) -> tuple[str, ...]:
+        """Return the sorted candidate IDs. This builds a catalog-sized tuple."""
+
+        return tuple(sorted(self.catalog_item_ids - self.history_item_ids))
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "user_id": self.user_id,
-            "candidate_item_ids": list(self.candidate_item_ids),
+            "candidate_rule": CANDIDATE_RULE,
+            "candidate_count": self.candidate_count,
+            "candidate_signature": self.candidate_signature,
+            "history_item_ids": sorted(self.history_item_ids),
             "target_item_ids": sorted(self.target_item_ids),
             "history_count": self.history_count,
             "history_slice": self.history_slice,
@@ -148,6 +176,7 @@ class EvaluationDataset:
     exclusions: Mapping[str, int]
     candidate_set_hash: str
     popularity_counts: Mapping[str, int]
+    catalog_hash: str = ""
 
     def __post_init__(self) -> None:
         _as_non_empty_string(self.snapshot_id, "snapshot_id")
@@ -177,6 +206,7 @@ class EvaluationDataset:
             "cases": [case.to_dict() for case in self.cases],
             "exclusions": dict(self.exclusions),
             "candidate_set_hash": self.candidate_set_hash,
+            "catalog_hash": self.catalog_hash,
             "popularity_counts": dict(self.popularity_counts),
         }
 
@@ -236,7 +266,8 @@ def build_evaluation_cases(
         if _timestamp_for_error(row["timestamp"]) >= cutoff_value:
             raise LeakageError("interaction rows must be strictly before the evaluation cutoff")
     past_rows = first_interactions_before_cutoff(interaction_rows, cutoff_timestamp)
-    catalog = {row["item_id"] for row in past_rows}
+    catalog = frozenset(row["item_id"] for row in past_rows)
+    catalog_hash = catalog_fingerprint(catalog)
     history_by_user: dict[str, set[str]] = defaultdict(set)
     positive_counts: Counter[str] = Counter()
     for row in past_rows:
@@ -288,9 +319,8 @@ def build_evaluation_cases(
 
     cases: list[EvaluationCase] = []
     for user_id in sorted(target_by_user):
-        history = history_by_user.get(user_id, set())
-        candidates = tuple(sorted(catalog - history))
-        if not candidates:
+        history = frozenset(history_by_user.get(user_id, set()))
+        if len(catalog) - len(history) <= 0:
             exclusions["no_candidates"] += 1
             continue
         targets_for_user = frozenset(target_by_user[user_id])
@@ -304,7 +334,9 @@ def build_evaluation_cases(
         cases.append(
             EvaluationCase(
                 user_id=user_id,
-                candidate_item_ids=candidates,
+                catalog_item_ids=catalog,
+                catalog_hash=catalog_hash,
+                history_item_ids=history,
                 target_item_ids=targets_for_user,
                 history_count=len(history),
                 history_slice=_history_slice(len(history)),
@@ -315,6 +347,8 @@ def build_evaluation_cases(
         {
             "snapshot_id": snapshot_id,
             "cutoff_timestamp": cutoff_value,
+            "candidate_rule": CANDIDATE_RULE,
+            "catalog_hash": catalog_hash,
             "cases": [case.to_dict() for case in cases],
         }
     )
@@ -325,6 +359,7 @@ def build_evaluation_cases(
         exclusions=exclusions,
         candidate_set_hash=candidate_set_hash,
         popularity_counts=dict(positive_counts),
+        catalog_hash=catalog_hash,
     )
 
 
@@ -360,6 +395,37 @@ def _validate_optional_number(
     return parsed
 
 
+def _validate_candidate_declaration(
+    model_id: str, row: Mapping[str, Any], case: EvaluationCase
+) -> None:
+    """Check a row's candidate pool by explicit IDs or by pool signature."""
+
+    candidate_ids = row.get("candidate_item_ids")
+    if candidate_ids is not None:
+        if not isinstance(candidate_ids, (list, tuple)):
+            raise ValueError(f"{model_id} candidate_item_ids must be a list")
+        if (
+            len(candidate_ids) != case.candidate_count
+            or len(set(candidate_ids)) != len(candidate_ids)
+            or not all(
+                isinstance(item_id, str) and case.is_candidate(item_id) for item_id in candidate_ids
+            )
+        ):
+            raise LeakageError(f"{model_id} candidate set does not match evaluation dataset")
+        return
+    signature = row.get("candidate_signature")
+    if signature is None:
+        raise ValueError(f"{model_id} rows must declare candidate_item_ids or candidate_signature")
+    rule = row.get("candidate_rule", CANDIDATE_RULE)
+    count = row.get("candidate_count", case.candidate_count)
+    if (
+        rule != CANDIDATE_RULE
+        or signature != case.candidate_signature
+        or count != case.candidate_count
+    ):
+        raise LeakageError(f"{model_id} candidate set does not match evaluation dataset")
+
+
 def _validate_model_rows(
     dataset: EvaluationDataset,
     model_id: str,
@@ -383,21 +449,16 @@ def _validate_model_rows(
             dataset.cutoff_timestamp
         ):
             raise LeakageError(f"{model_id} cutoff does not match evaluation dataset")
-        candidate_ids = raw_row.get("candidate_item_ids")
+        _validate_candidate_declaration(model_id, raw_row, case)
         ranked_ids = raw_row.get("ranked_item_ids")
-        if not isinstance(candidate_ids, (list, tuple)):
-            raise ValueError(f"{model_id} candidate_item_ids must be a list")
         if not isinstance(ranked_ids, (list, tuple)):
             raise ValueError(f"{model_id} ranked_item_ids must be a list")
-        candidate_ids = tuple(candidate_ids)
         ranked_ids = tuple(ranked_ids)
-        if set(candidate_ids) != set(case.candidate_item_ids) or len(candidate_ids) != len(
-            set(candidate_ids)
-        ):
-            raise LeakageError(f"{model_id} candidate set does not match evaluation dataset")
         if len(ranked_ids) != len(set(ranked_ids)):
             raise LeakageError(f"{model_id} ranked items contain duplicates")
-        if not set(ranked_ids) <= set(candidate_ids):
+        if not all(
+            isinstance(item_id, str) and case.is_candidate(item_id) for item_id in ranked_ids
+        ):
             raise LeakageError(f"{model_id} ranks an item outside its candidate set")
         declared_targets = raw_row.get("target_item_ids")
         if declared_targets is not None and set(declared_targets) != set(case.target_item_ids):
@@ -412,7 +473,6 @@ def _validate_model_rows(
         memory = _validate_optional_number(raw_row.get("memory_bytes"), "memory_bytes", minimum=0.0)
         validated[user_id] = {
             "user_id": user_id,
-            "candidate_item_ids": list(candidate_ids),
             "ranked_item_ids": list(ranked_ids),
             "explanation_coverage": explanation,
             "latency_ms": latency,
@@ -465,7 +525,7 @@ def _metric_row(
         )
     result["coverage"] = 1.0 if ranked else 0.0
     result["candidate_retention"] = (
-        len(ranked) / len(case.candidate_item_ids) if case.candidate_item_ids else 0.0
+        len(ranked) / case.candidate_count if case.candidate_count else 0.0
     )
     result["explanation_coverage"] = ranking.get("explanation_coverage")
     result["latency_ms"] = ranking.get("latency_ms")
@@ -508,21 +568,17 @@ def _bootstrap_for_metric(
     confidence_level: float,
     reference_model: str | None,
 ) -> dict[str, BootstrapSummary]:
-    available_users = [
-        user_id
-        for user_id in user_order
-        if all(
-            model_id in model_rows
-            and any(row.get("user_id") == user_id and row.get(metric) is not None for row in rows)
-            for model_id, rows in model_rows.items()
-        )
-    ]
-    if not available_users:
-        return {}
     row_maps = {
         model_id: {str(row["user_id"]): row for row in rows}
         for model_id, rows in model_rows.items()
     }
+    available_users = [
+        user_id
+        for user_id in user_order
+        if all(row_maps[model_id].get(user_id, {}).get(metric) is not None for model_id in row_maps)
+    ]
+    if not available_users:
+        return {}
     values = {
         model_id: [float(row_maps[model_id][user_id][metric]) for user_id in available_users]
         for model_id in model_rows
@@ -588,7 +644,7 @@ def compare_model_rankings(
             "eligible_users": len(dataset.cases),
             "evaluated_users": len(rows),
             "target_items": sum(len(case.target_item_ids) for case in dataset.cases),
-            "candidate_items": sum(len(case.candidate_item_ids) for case in dataset.cases),
+            "candidate_items": sum(case.candidate_count for case in dataset.cases),
             "ranked_users": sum(1 for row in rows if row["coverage"] > 0),
             "explanation_users": sum(
                 1 for row in rows if row.get("explanation_coverage") is not None

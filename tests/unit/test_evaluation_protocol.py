@@ -158,3 +158,78 @@ def test_compare_model_rankings_uses_shared_user_bootstrap() -> None:
 
     assert results["t0"].bootstrap["ndcg@1"].delta_estimate < 0
     assert results["b0"].counts["evaluated_users"] == 1
+
+
+def signature_rows(dataset: Any, *, signature: str | None = None) -> list[dict[str, Any]]:
+    return [
+        {
+            "user_id": case.user_id,
+            "snapshot_id": dataset.snapshot_id,
+            "cutoff_timestamp": dataset.cutoff_timestamp,
+            "candidate_rule": "catalog_minus_history",
+            "candidate_count": case.candidate_count,
+            "candidate_signature": signature or case.candidate_signature,
+            "ranked_item_ids": ["a"],
+        }
+        for case in dataset.cases
+    ]
+
+
+def test_compare_model_rankings_accepts_candidate_signatures() -> None:
+    dataset = fixture_dataset()
+    results = compare_model_rankings(
+        dataset,
+        {"b0": fixture_rows(dataset), "b1": signature_rows(dataset)},
+        k_values=(1,),
+        bootstrap_samples=20,
+    )
+
+    assert results["b1"].metrics["ndcg@1"] == 1.0
+    assert results["b1"].metrics["candidate_retention"] == 0.5
+
+
+@pytest.mark.parametrize("field", ["candidate_signature", "candidate_count", "missing"])
+def test_compare_model_rankings_rejects_wrong_candidate_declarations(field: str) -> None:
+    dataset = fixture_dataset()
+    rows = signature_rows(dataset)
+    if field == "candidate_signature":
+        rows[0]["candidate_signature"] = "0" * 64
+    elif field == "candidate_count":
+        rows[0]["candidate_count"] += 1
+    else:
+        del rows[0]["candidate_signature"]
+
+    error = ValueError if field == "missing" else LeakageError
+    with pytest.raises(error, match="candidate"):
+        compare_model_rankings(dataset, {"b1": rows}, k_values=(1,), bootstrap_samples=20)
+
+
+def test_compare_model_rankings_rejects_ranked_history_items() -> None:
+    dataset = fixture_dataset()
+    rows = signature_rows(dataset)
+    rows[0]["ranked_item_ids"] = ["h", "a"]
+
+    with pytest.raises(LeakageError, match="outside its candidate set"):
+        compare_model_rankings(dataset, {"b1": rows}, k_values=(1,), bootstrap_samples=20)
+
+
+def test_evaluation_cases_share_one_catalog_without_copies() -> None:
+    interactions = [
+        {"review_id": f"r{i}", "user_id": f"u{i}", "item_id": f"i{i}", "rating": 5, "timestamp": 1}
+        for i in range(300)
+    ]
+    targets = [
+        {"review_id": f"t{i}", "user_id": f"u{i}", "item_id": "i0", "rating": 5, "timestamp": 10}
+        for i in range(1, 300)
+    ]
+    dataset = build_evaluation_cases(interactions, targets, snapshot_id="s", cutoff_timestamp=10)
+
+    assert len(dataset.cases) == 299
+    assert len({id(case.catalog_item_ids) for case in dataset.cases}) == 1
+    assert all(case.candidate_count == 299 for case in dataset.cases)
+    rows = signature_rows(dataset)
+    for row in rows:
+        row["ranked_item_ids"] = ["i0"]
+    results = compare_model_rankings(dataset, {"b1": rows}, k_values=(1,), bootstrap_samples=50)
+
+    assert results["b1"].metrics["recall@1"] == 1.0

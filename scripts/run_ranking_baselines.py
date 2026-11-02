@@ -10,16 +10,15 @@ from typing import Any
 
 import pyarrow.parquet as pq
 
-from trustrec.graph.personalized_pagerank import rank_personalized_pagerank
-from trustrec.recommenders.bpr_mf import rank_bpr_mf
-from trustrec.recommenders.contracts import (
-    build_candidate_set,
-    stable_model_hash,
+from trustrec.recommenders.contracts import stable_model_hash
+from trustrec.recommenders.registry import (
+    BASELINE_MODEL_IDS,
+    BaselineParameters,
+    create_baseline,
+    effective_seed,
 )
-from trustrec.recommenders.item_knn import rank_item_knn
-from trustrec.recommenders.popularity import rank_popularity
 
-MODEL_IDS = ("b0_most_popular", "b1_item_knn", "b2_bpr_mf", "b3_ppr")
+MODEL_IDS = BASELINE_MODEL_IDS
 ARTIFACT_BY_CUTOFF = {"t0": "train_interactions", "t1": "fit_interactions"}
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -78,6 +77,7 @@ def run_baseline(
     regularization: float = 0.0001,
     epochs: int = 50,
     negative_samples: int = 1,
+    bpr_batch_size: int = 1024,
     damping: float = 0.85,
     max_iter: int = 100,
     tol: float = 1e-12,
@@ -90,9 +90,22 @@ def run_baseline(
         raise ValueError(f"unsupported model_id: {model_id}")
     if cutoff_name not in ARTIFACT_BY_CUTOFF:
         raise ValueError(f"unsupported cutoff_name: {cutoff_name}")
-    if neighbor_limit < 0:
-        raise ValueError("neighbor_limit cannot be negative")
-    effective_seed = 7 if model_id == "b2_bpr_mf" and seed is None else seed
+    parameters = BaselineParameters(
+        positive_threshold=positive_threshold,
+        neighbor_limit=neighbor_limit,
+        embedding_dimensions=embedding_dimensions,
+        learning_rate=learning_rate,
+        regularization=regularization,
+        epochs=epochs,
+        negative_samples=negative_samples,
+        bpr_batch_size=bpr_batch_size,
+        damping=damping,
+        max_iter=max_iter,
+        tol=tol,
+        seed=seed,
+    )
+    ranker = create_baseline(model_id, parameters)
+    effective = effective_seed(model_id, seed)
     manifest = _load_manifest(manifest_path)
     cutoff_timestamp = manifest["cutoffs"].get(cutoff_name)
     if not cutoff_timestamp:
@@ -108,58 +121,9 @@ def run_baseline(
     source_artifact_hash = _sha256_file(interactions_path)
     if expected_artifact_hash and source_artifact_hash != expected_artifact_hash:
         raise ValueError(f"{artifact_name} hash does not match the snapshot manifest")
-    interactions = pq.read_table(interactions_path).to_pylist()
-    candidates = build_candidate_set(
-        user_id=user_id,
-        snapshot_id=manifest["snapshot_id"],
-        interactions=interactions,
-        cutoff_timestamp=cutoff_timestamp,
-    )
-    if model_id == "b0_most_popular":
-        result = rank_popularity(
-            interactions,
-            candidates,
-            positive_threshold=positive_threshold,
-            snapshot_id=manifest["snapshot_id"],
-            seed=seed,
-            k=k,
-        )
-    elif model_id == "b1_item_knn":
-        result = rank_item_knn(
-            interactions,
-            candidates,
-            positive_threshold=positive_threshold,
-            n_neighbors=neighbor_limit or None,
-            snapshot_id=manifest["snapshot_id"],
-            seed=seed,
-            k=k,
-        )
-    elif model_id == "b2_bpr_mf":
-        result = rank_bpr_mf(
-            interactions,
-            candidates,
-            embedding_dimensions=embedding_dimensions,
-            learning_rate=learning_rate,
-            regularization=regularization,
-            epochs=epochs,
-            negative_samples=negative_samples,
-            positive_threshold=positive_threshold,
-            snapshot_id=manifest["snapshot_id"],
-            seed=effective_seed,
-            k=k,
-        )
-    else:
-        result = rank_personalized_pagerank(
-            interactions,
-            candidates,
-            damping=damping,
-            positive_threshold=positive_threshold,
-            max_iter=max_iter,
-            tol=tol,
-            snapshot_id=manifest["snapshot_id"],
-            seed=seed,
-            k=k,
-        )
+    ranker.fit(pq.read_table(interactions_path), cutoff_timestamp, manifest["snapshot_id"])
+    candidates = ranker.matrix.candidate_set(user_id, manifest["snapshot_id"])
+    result = ranker.rank(candidates, k=k)
     configuration_hash = stable_model_hash(
         {
             "model_id": model_id,
@@ -171,10 +135,11 @@ def run_baseline(
             "regularization": regularization,
             "epochs": epochs,
             "negative_samples": negative_samples,
+            "bpr_batch_size": bpr_batch_size,
             "damping": damping,
             "max_iter": max_iter,
             "tol": tol,
-            "seed": effective_seed,
+            "seed": effective,
             "k": k,
         }
     )
@@ -188,7 +153,7 @@ def run_baseline(
                 "configuration_hash": configuration_hash,
                 "user_id": user_id,
                 "cutoff_name": cutoff_name,
-                "seed": effective_seed,
+                "seed": effective,
                 "k": k,
             }
         )[:16],
@@ -198,7 +163,7 @@ def run_baseline(
         "source_artifact_sha256": source_artifact_hash,
         "source_cutoff_timestamp": cutoff_timestamp,
         "cutoff_name": cutoff_name,
-        "seed": effective_seed,
+        "seed": effective,
         "configuration": result.configuration,
         "configuration_hash": configuration_hash,
         "model_hash": result.model_hash,
@@ -227,6 +192,7 @@ def main() -> None:
     parser.add_argument("--regularization", type=float, default=0.0001)
     parser.add_argument("--epochs", type=_positive_integer, default=50)
     parser.add_argument("--negative-samples", type=_positive_integer, default=1)
+    parser.add_argument("--bpr-batch-size", type=_positive_integer, default=1024)
     parser.add_argument("--damping", type=float, default=0.85)
     parser.add_argument("--max-iter", type=_positive_integer, default=100)
     parser.add_argument("--tol", type=float, default=1e-12)
@@ -246,6 +212,7 @@ def main() -> None:
         regularization=args.regularization,
         epochs=args.epochs,
         negative_samples=args.negative_samples,
+        bpr_batch_size=args.bpr_batch_size,
         damping=args.damping,
         max_iter=args.max_iter,
         tol=args.tol,

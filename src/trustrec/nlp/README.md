@@ -12,4 +12,4 @@ Run the baselines from the repository root:
 PYTHONPATH=src python3 scripts/run_nlp_baselines.py
 ```
 
-Read the [T2.3 report](../../docs/tasks/t2_3-nlp-baselines.md) and [baseline contract](../../docs/specs/nlp-baseline-contract.md) for the fixed settings, split limits, metrics, and artifact paths.
+Read the [T2.3 report](../../../docs/tasks/t2_3-nlp-baselines.md) and [baseline contract](../../../docs/specs/nlp-baseline-contract.md) for the fixed settings, split limits, metrics, and artifact paths.

@@ -344,7 +344,3 @@ def rank_bpr_mf(
         .fit(interactions, candidate_set.cutoff_timestamp, snapshot_id=snapshot_id)
         .rank(candidate_set, k=k)
     )
-
-
-BPRMF = BPRMFRanker
-rank_bpr = rank_bpr_mf

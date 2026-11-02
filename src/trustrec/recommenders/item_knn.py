@@ -257,6 +257,3 @@ def rank_item_knn(
         .fit(interactions, candidate_set.cutoff_timestamp, snapshot_id=snapshot_id)
         .rank(candidate_set, k=k)
     )
-
-
-ItemKNN = ItemKNNRanker

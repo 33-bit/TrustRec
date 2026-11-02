@@ -76,6 +76,3 @@ class FixedHybridRanker:
             aspect_weight=self.aspect_weight,
             k=k,
         )
-
-
-FixedHybrid = FixedHybridRanker

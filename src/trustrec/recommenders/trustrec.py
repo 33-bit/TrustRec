@@ -88,6 +88,3 @@ class TrustRecRanker:
             rho=self.rho,
             k=k,
         )
-
-
-TrustRec = TrustRecRanker

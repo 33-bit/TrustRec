@@ -17,7 +17,7 @@ from trustrec.evaluation.protocol import (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL_VERSION = "evaluation-v1"
+PROTOCOL_VERSION = "evaluation-v2"
 INTERACTIONS_BY_CUTOFF = {"t0": "train_interactions", "t1": "fit_interactions"}
 TARGETS_BY_CUTOFF = {"t0": "validation_targets", "t1": "test_targets"}
 

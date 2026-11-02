@@ -206,7 +206,7 @@
     {
       "artifact_id": "evaluation_configuration",
       "path": "configs/evaluation.toml",
-      "sha256": "afa8ce982ea53d7875b1d15cc38ecec537621cf3646f4c95d2cbcb8e8777ffcf"
+      "sha256": "cabab2d59408400e364f5c9aeba44cce631ef89fecd1bbe922a998e18fb8b58a"
     },
     {
       "artifact_id": "research_claims_policy",

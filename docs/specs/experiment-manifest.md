@@ -6,7 +6,7 @@ A manifest records the inputs and outputs of a run. Each run writes one JSON man
 {
   "run_id": "t0-bpr-seed07",
   "snapshot_id": "video_games-pilot-...",
-  "protocol_version": "evaluation-v1",
+  "protocol_version": "evaluation-v2",
   "model": "bpr_mf",
   "config_path": "configs/experiments/b2_bpr_mf.toml",
   "config_sha256": "...",

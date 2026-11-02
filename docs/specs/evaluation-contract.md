@@ -2,7 +2,7 @@
 
 Use global time boundaries `T0 < T1`. Training uses events before `T0`. Validation targets use `[T0, T1)`. Final fitting uses events before `T1`. Test targets use events at or after `T1`.
 
-Candidates are known items that the user did not review before the cutoff. A target must belong to the catalog before its cutoff. Use the same users, candidates, and targets for every compared model.
+Candidates are known items that the user did not review before the cutoff. A target must belong to the catalog before its cutoff. Use the same users, candidates, and targets for every compared model. A ranking row declares its candidates with the full ID list or with the `catalog_minus_history` rule, the candidate count, and the candidate signature from [ADR-0014](../adr/0014-sparse-rankers-and-compact-candidates.md).
 
 NDCG@10 is the primary metric. Also report Recall@K, Precision@K, coverage, diversity, popularity slices, sparse-history slices, explanation coverage, latency, memory, and fit time. Report eligible users and exclusion reasons.
 

@@ -164,3 +164,52 @@ def test_parse_response_recovers_the_last_complete_object() -> None:
     for content in (broken, fenced):
         (result,) = parse_response(content, reviews, max_chars=100)
         assert [label["aspect"] for label in result.labels] == ["story"]
+
+
+def test_sharded_writer_rotates_parts_and_resumes(tmp_path) -> None:
+    from trustrec.nlp.llm_labeler import ShardedCacheWriter, cache_files
+
+    record = {"model_id": "m", "reasoning_effort": None, "prompt_version": "t6.2-llm-batch-v1"}
+    writer = ShardedCacheWriter(tmp_path, rows_per_part=2)
+    for index in range(3):
+        writer.write(json.dumps({**record, "review_id": f"r{index}", "error": None}))
+    writer.close()
+    with (tmp_path / "part-00001.jsonl").open("a") as handle:
+        handle.write('{"partial')
+    writer = ShardedCacheWriter(tmp_path, rows_per_part=2)
+    writer.write(json.dumps({**record, "review_id": "r3", "error": None}))
+    writer.close()
+
+    assert [path.name for path in cache_files(tmp_path)] == [
+        "part-00000.jsonl",
+        "part-00001.jsonl",
+        "part-00002.jsonl",
+    ]
+    assert set(load_cache(tmp_path, "m", None)) == {"r0", "r1", "r2", "r3"}
+
+
+def test_hf_sync_refuses_public_repos_and_uploads_only_changes(tmp_path, monkeypatch) -> None:
+    pytest.importorskip("huggingface_hub")
+    from trustrec.data.hf_sync import HFSync
+
+    class FakeApi:
+        def __init__(self, private: bool) -> None:
+            self.private, self.commits = private, []
+
+        def dataset_info(self, repo_id):
+            return type("Info", (), {"private": self.private})()
+
+        def create_commit(self, **kwargs):
+            self.commits.append([op.path_in_repo for op in kwargs["operations"]])
+            return type("Commit", (), {"oid": "abc"})()
+
+    (tmp_path / "part-00000.jsonl").write_text("{}\n")
+    with pytest.raises(RuntimeError, match="public"):
+        HFSync("o/r", tmp_path, "llm/m", api=FakeApi(private=False)).push()
+    api = FakeApi(private=True)
+    sync = HFSync("o/r", tmp_path, "llm/m", api=api)
+    assert sync.push()["uploaded"] == ["part-00000.jsonl"]
+    assert sync.push()["uploaded"] == []
+    (tmp_path / "part-00000.jsonl").write_text("{}\n{}\n")
+    assert sync.push()["uploaded"] == ["part-00000.jsonl"]
+    assert api.commits == [["llm/m/part-00000.jsonl"], ["llm/m/part-00000.jsonl"]]

@@ -48,10 +48,6 @@ def percentile_normalize(scores: Mapping[str, float]) -> dict[str, float]:
     return normalized
 
 
-normalize_scores = percentile_normalize
-percentile_rank = percentile_normalize
-
-
 def _validate_components(
     mf_scores: Mapping[str, float],
     graph_scores: Mapping[str, float],
@@ -85,21 +81,15 @@ def fixed_hybrid_scores(
 ) -> dict[str, float]:
     """Combine normalized MF, graph, and aspect scores with fixed weights."""
 
-    _validate_weights(mf_weight, graph_weight, aspect_weight)
-    mf, graph, aspect = _validate_components(mf_scores, graph_scores, aspect_scores)
-    mf_rank = percentile_normalize(mf)
-    graph_rank = percentile_normalize(graph)
-    aspect_rank = percentile_normalize(aspect)
-    return {
-        item_id: mf_weight * mf_rank[item_id]
-        + graph_weight * graph_rank[item_id]
-        + aspect_weight * aspect_rank[item_id]
-        for item_id in mf
-    }
-
-
-combine_fixed_hybrid = fixed_hybrid_scores
-score_fixed_hybrid = fixed_hybrid_scores
+    details = fixed_hybrid_details(
+        mf_scores,
+        graph_scores,
+        aspect_scores,
+        mf_weight=mf_weight,
+        graph_weight=graph_weight,
+        aspect_weight=aspect_weight,
+    )
+    return {item_id: detail.total_score for item_id, detail in details.items()}
 
 
 def _validate_gate(kappa: float, g_max: float, rho: float) -> None:
@@ -109,6 +99,29 @@ def _validate_gate(kappa: float, g_max: float, rho: float) -> None:
         raise ValueError("g_max must be finite and between 0 and 1")
     if not math.isfinite(float(rho)) or not 0.0 <= rho <= 1.0:
         raise ValueError("rho must be finite and between 0 and 1")
+
+
+def _validate_gate_inputs(
+    mf_scores: Mapping[str, float],
+    graph_scores: Mapping[str, float],
+    aspect_scores: Mapping[str, float],
+    support: Mapping[str, float],
+    history_count: int,
+    *,
+    kappa: float,
+    g_max: float,
+    rho: float,
+) -> tuple[dict[str, float], dict[str, float], dict[str, float], dict[str, float]]:
+    _validate_gate(kappa, g_max, rho)
+    if isinstance(history_count, bool) or not isinstance(history_count, int) or history_count < 0:
+        raise ValueError("history_count must be a non-negative integer")
+    mf, graph, aspect = _validate_components(mf_scores, graph_scores, aspect_scores)
+    support_values = _finite_scores(support, "support")
+    if set(support_values) != set(mf):
+        raise ValueError("support must use the same candidate IDs as hybrid components")
+    if any(value < 0.0 or value > 1.0 for value in support_values.values()):
+        raise ValueError("support values must be between 0 and 1")
+    return mf, graph, aspect, support_values
 
 
 def adaptive_trustrec_scores(
@@ -124,31 +137,17 @@ def adaptive_trustrec_scores(
 ) -> dict[str, float]:
     """Apply the adaptive TrustRec gate after shared percentile normalization."""
 
-    _validate_gate(kappa, g_max, rho)
-    if isinstance(history_count, bool) or not isinstance(history_count, int) or history_count < 0:
-        raise ValueError("history_count must be a non-negative integer")
-    mf, graph, aspect = _validate_components(mf_scores, graph_scores, aspect_scores)
-    support_values = _finite_scores(support, "support")
-    if set(support_values) != set(mf):
-        raise ValueError("support must use the same candidate IDs as hybrid components")
-    if any(value < 0.0 or value > 1.0 for value in support_values.values()):
-        raise ValueError("support values must be between 0 and 1")
-    mf_rank = percentile_normalize(mf)
-    graph_rank = percentile_normalize(graph)
-    aspect_rank = percentile_normalize(aspect)
-    history_factor = kappa / (kappa + history_count)
-    return {
-        item_id: (
-            (1.0 - g_max * history_factor * support_values[item_id])
-            * (rho * mf_rank[item_id] + (1.0 - rho) * graph_rank[item_id])
-            + g_max * history_factor * support_values[item_id] * aspect_rank[item_id]
-        )
-        for item_id in mf
-    }
-
-
-adaptive_gate_scores = adaptive_trustrec_scores
-trustrec_scores = adaptive_trustrec_scores
+    details = adaptive_trustrec_details(
+        mf_scores,
+        graph_scores,
+        aspect_scores,
+        support,
+        history_count,
+        kappa=kappa,
+        g_max=g_max,
+        rho=rho,
+    )
+    return {item_id: detail.total_score for item_id, detail in details.items()}
 
 
 @dataclass(frozen=True)
@@ -234,13 +233,16 @@ def adaptive_trustrec_details(
 ) -> dict[str, HybridScore]:
     """Return adaptive scores with per-item gate and score-part details."""
 
-    _validate_gate(kappa, g_max, rho)
-    mf, graph, aspect = _validate_components(mf_scores, graph_scores, aspect_scores)
-    support_values = _finite_scores(support, "support")
-    if set(support_values) != set(mf):
-        raise ValueError("support must use the same candidate IDs as hybrid components")
-    if any(value < 0.0 or value > 1.0 for value in support_values.values()):
-        raise ValueError("support values must be between 0 and 1")
+    mf, graph, aspect, support_values = _validate_gate_inputs(
+        mf_scores,
+        graph_scores,
+        aspect_scores,
+        support,
+        history_count,
+        kappa=kappa,
+        g_max=g_max,
+        rho=rho,
+    )
     normalized = tuple(percentile_normalize(values) for values in (mf, graph, aspect))
     mf_rank, graph_rank, aspect_rank = normalized
     history_factor = kappa / (kappa + history_count)

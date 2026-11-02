@@ -311,8 +311,3 @@ def rank_personalized_pagerank(
         .fit(interactions, candidate_set.cutoff_timestamp, snapshot_id=snapshot_id)
         .rank(candidate_set, k=k)
     )
-
-
-PPRRanker = PersonalizedPageRankRanker
-PersonalizedPageRank = PersonalizedPageRankRanker
-rank_ppr = rank_personalized_pagerank

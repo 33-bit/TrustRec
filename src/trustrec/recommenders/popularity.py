@@ -165,7 +165,3 @@ def rank_popularity(
         .fit(interactions, candidate_set.cutoff_timestamp, snapshot_id=snapshot_id)
         .rank(candidate_set, k=k)
     )
-
-
-MostPopularRanker = PopularityRanker
-rank_most_popular = rank_popularity

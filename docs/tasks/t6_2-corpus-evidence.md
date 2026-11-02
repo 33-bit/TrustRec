@@ -50,3 +50,41 @@ reviews are longer, so expect longer labeling times.
 - [x] Tests cover the contract: exact offsets, text-hash checks, ratings ignored, refusals, cutoff and interaction filtering, the profile hand-off, and the manifest no-overwrite rule.
 - [x] The output records its snapshot ID, cutoff, labeler hash, and source hashes.
 - [x] Documentation and backlog status match the result.
+
+## Real corpus runs (2026-11-02)
+
+### Dictionary evidence
+
+| Cutoff | Reviews | Labeled reviews | Evidence rows | Wall time, 2 workers |
+| --- | --- | --- | --- | --- |
+| `t0` | 1,373,677 | 543,204 | 1,155,985 | 624 s |
+| `t1` | 1,545,387 | 586,355 | 1,227,183 | 663 s |
+
+The outputs are in ignored `artifacts/evidence/{t0,t1}_dictionary.jsonl`.
+
+### DeepSeek LLM labels
+
+The project owner chose an LLM labeler. `scripts/label_reviews_llm.py` labels
+every review before `T1` once; the `t0` evidence is the subset before `T0`.
+
+- Model: `deepseek-flash` through the DeepSeek API. Batches of 20 reviews, temperature 0, prompt `t6.2-llm-batch-v1`.
+- The reasoning setting was chosen on the `development_pilot` split (100 units). That split's labels came from another LLM, so the scores below are agreement, not accuracy.
+
+  | Setting | Aspect micro F1 | Aspect-polarity F1 | Completion tokens |
+  | --- | --- | --- | --- |
+  | reasoning off (`reasoning_effort = none`) | 0.828 | 0.728 | 11,986 |
+  | `reasoning_effort = low` | 0.842 | 0.717 | 72,313 |
+
+  Reasoning off was chosen: agreement is about the same, with six times fewer tokens and about seven times faster requests.
+- Process note: the same two settings were first scored on the frozen `llm_pseudo_test` split (reasoning off 0.842 / 0.802, low 0.880 / 0.851). ADR-0013 forbids using that split for model selection. Those numbers are reported only as consistency checks, and the choice above rests on the development pilot.
+- Coverage: 18,537 of 1,545,387 reviews (1.2%) are labeled. 12,064 of them have at least one aspect label. All 922 requests succeeded. The run stopped when the account ran out of balance.
+- Usage: 2,346,872 prompt tokens (236,288 cache hits) and 1,321,276 completion tokens, which is about 127 input and 72 output tokens per review. The measured cost was about 0.42 CNY per 1,000 reviews. The remaining reviews would cost about 640 CNY and take about 5 hours with 32 parallel requests.
+- Cache: `artifacts/llm/deepseek_t1_labels.jsonl` and its `.runs.jsonl` log. The owner holds a downloaded copy. Rerunning the same command resumes from the cache.
+
+Ways to reduce cost:
+
+- Cap the number of reviews per item. At most 50 reviews per item leaves 526,309 reviews.
+- Use a shorter JSON output format.
+- Use larger batches.
+
+Each of these changes the prompt or the sample, so it needs a new prompt version and a development-pilot check.

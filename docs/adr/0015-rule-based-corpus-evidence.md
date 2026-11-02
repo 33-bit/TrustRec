@@ -38,3 +38,10 @@ and its run must not use the frozen `llm_pseudo_test` split for tuning.
 Reports that use this evidence must name `rule_baseline` as the label source
 and state the T2.3 consistency limits. These labels are not LLM labels and not
 human gold labels.
+
+## Update (2026-11-02)
+
+The project owner chose an LLM labeler (DeepSeek, see T6.2). Dictionary
+evidence stays available as a full-coverage interim source, but only with
+the `rule_baseline` label. LLM coverage is 1.2% until more labeling budget is
+available.

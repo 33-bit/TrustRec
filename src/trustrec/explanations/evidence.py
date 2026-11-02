@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -63,7 +63,7 @@ def _timestamp(row: Mapping[str, Any]) -> Timestamp:
     return value
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class EvidenceObservation:
     """One normalized aspect observation from a review."""
 
@@ -148,10 +148,9 @@ class AggregatedEvidence:
         return result
 
 
-def _expand_rows(rows: Iterable[Mapping[str, Any] | Any]) -> list[Mapping[str, Any]]:
+def _expand_rows(rows: Iterable[Mapping[str, Any] | Any]) -> Iterator[Mapping[str, Any]]:
     """Expand annotation records that contain a nested ``labels`` list."""
 
-    expanded: list[Mapping[str, Any]] = []
     for row in rows:
         source = _mapping(row)
         labels = source.get("labels")
@@ -161,10 +160,9 @@ def _expand_rows(rows: Iterable[Mapping[str, Any] | Any]) -> list[Mapping[str, A
                     raise ValueError("labels must contain mapping objects")
                 merged = dict(source)
                 merged.update(label)
-                expanded.append(merged)
+                yield merged
         else:
-            expanded.append(source)
-    return expanded
+            yield source
 
 
 def _normalize_rows(rows: Iterable[Mapping[str, Any] | Any]) -> list[EvidenceObservation]:

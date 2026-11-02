@@ -96,6 +96,46 @@ class BPRMFRanker(MatrixRanker):
             )
         }
 
+    def init_parameters(self) -> dict[str, Any]:
+        return {
+            "embedding_dimensions": self.embedding_dimensions,
+            "learning_rate": self.learning_rate,
+            "regularization": self.regularization,
+            "positive_threshold": self.positive_threshold,
+            "epochs": self.epochs,
+            "negative_samples": self.negative_samples,
+            "seed": self.seed,
+            "batch_size": self.batch_size,
+        }
+
+    def _state_arrays(self) -> dict[str, np.ndarray]:
+        return {
+            "factor_rows": self._factor_rows,
+            "user_factors": self._user_factors,
+            "item_factors": self._item_factors,
+            "item_bias": self._item_bias,
+        }
+
+    def _restore_state(self, matrix: InteractionMatrix, arrays: Mapping[str, np.ndarray]) -> None:
+        factor_rows = np.asarray(arrays["factor_rows"], dtype=np.int64)
+        user_factors = np.asarray(arrays["user_factors"], dtype=np.float64)
+        item_factors = np.asarray(arrays["item_factors"], dtype=np.float64)
+        item_bias = np.asarray(arrays["item_bias"], dtype=np.float64)
+        dimensions = self.embedding_dimensions
+        if (
+            factor_rows.shape != (matrix.n_users,)
+            or item_factors.shape != (matrix.n_items, dimensions)
+            or item_bias.shape != (matrix.n_items,)
+            or user_factors.ndim != 2
+            or user_factors.shape[1] != dimensions
+            or factor_rows.max(initial=-1) >= user_factors.shape[0]
+        ):
+            raise ValueError("saved BPR arrays do not match the matrix or configuration")
+        self._factor_rows = factor_rows
+        self._user_factors = user_factors
+        self._item_factors = item_factors
+        self._item_bias = item_bias
+
     def _learned_state_hash(self) -> str:
         digest = hashlib.sha256()
         for array in (self._factor_rows, self._user_factors, self._item_factors, self._item_bias):

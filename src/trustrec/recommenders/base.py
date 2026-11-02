@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Any, ClassVar
 
 import numpy as np
@@ -18,6 +21,9 @@ from .contracts import (
     timestamp_value,
 )
 from .matrix import InteractionMatrix, build_interaction_matrix, top_k_order
+
+MODEL_FORMAT = "trustrec-matrix-ranker-v1"
+METADATA_KEY = "__metadata__"
 
 
 def validate_k(k: int | None) -> None:
@@ -84,6 +90,21 @@ class MatrixRanker:
     def _learned_state_hash(self) -> str | None:
         return None
 
+    def init_parameters(self) -> dict[str, Any]:
+        """Return constructor arguments that rebuild this ranker."""
+
+        return {"positive_threshold": self.positive_threshold, "seed": self.seed}
+
+    def _state_arrays(self) -> dict[str, np.ndarray]:
+        """Return learned arrays to save. Stateless rankers save none."""
+
+        return {}
+
+    def _restore_state(self, matrix: InteractionMatrix, arrays: Mapping[str, np.ndarray]) -> None:
+        """Restore learned state. Stateless rankers rebuild it from the matrix."""
+
+        self._fit_matrix(matrix)
+
     def _user_scores(self, user_id: str, positive_items: np.ndarray) -> np.ndarray:
         raise NotImplementedError
 
@@ -111,26 +132,87 @@ class MatrixRanker:
             matrix = build_interaction_matrix(
                 interactions, cutoff_timestamp, positive_threshold=self.positive_threshold
             )
-        else:
-            if timestamp_value(matrix.cutoff_timestamp) != timestamp_value(cutoff_timestamp):
-                raise ValueError("matrix cutoff does not match the requested cutoff")
-            if matrix.positive_threshold != self.positive_threshold:
-                raise ValueError("matrix positive_threshold does not match the ranker")
+        self._bind(matrix, cutoff_timestamp, snapshot_id)
+        self._fit_matrix(matrix)
+        self._finalize_hash()
+        return self
+
+    def _bind(
+        self, matrix: InteractionMatrix, cutoff_timestamp: Timestamp, snapshot_id: str | None
+    ) -> None:
+        if timestamp_value(matrix.cutoff_timestamp) != timestamp_value(cutoff_timestamp):
+            raise ValueError("matrix cutoff does not match the requested cutoff")
+        if matrix.positive_threshold != self.positive_threshold:
+            raise ValueError("matrix positive_threshold does not match the ranker")
         self._matrix = matrix
         self._cutoff_timestamp = cutoff_timestamp
         self._snapshot_id = snapshot_id
-        self._fit_matrix(matrix)
+
+    def _finalize_hash(self) -> None:
         self._model_hash = stable_model_hash(
             {
                 "model_id": self.model_id,
                 **self._hash_configuration(),
                 "seed": self.seed,
-                "cutoff_timestamp": timestamp_value(cutoff_timestamp),
-                "snapshot_id": snapshot_id,
-                "data_fingerprint": matrix.fingerprint,
+                "cutoff_timestamp": timestamp_value(self._cutoff_timestamp),
+                "snapshot_id": self._snapshot_id,
+                "data_fingerprint": self.matrix.fingerprint,
                 "learned_state_sha256": self._learned_state_hash(),
             }
         )
+
+    # Persistence ----------------------------------------------------------
+
+    def save(self, path: Path) -> dict[str, Any]:
+        """Write the fitted model to one ``.npz`` file and return its metadata.
+
+        The file holds learned arrays and metadata, not the interaction matrix.
+        ``load_baseline`` rebuilds a ranker from the file and the same matrix.
+        """
+
+        if self._model_hash is None:
+            raise RuntimeError(f"{type(self).__name__} must be fitted before saving")
+        cutoff = self._cutoff_timestamp
+        if isinstance(cutoff, datetime):
+            cutoff = cutoff.isoformat()
+        metadata = {
+            "format": MODEL_FORMAT,
+            "model_id": self.model_id,
+            "init_parameters": self.init_parameters(),
+            "configuration": self.configuration(),
+            "model_hash": self._model_hash,
+            "data_fingerprint": self.matrix.fingerprint,
+            "catalog_hash": self.matrix.catalog_hash,
+            "cutoff_timestamp": cutoff,
+            "snapshot_id": self._snapshot_id,
+        }
+        arrays = self._state_arrays()
+        if METADATA_KEY in arrays:
+            raise ValueError(f"state array name {METADATA_KEY} is reserved")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("wb") as handle:
+            np.savez(handle, **{METADATA_KEY: np.array(json.dumps(metadata))}, **arrays)
+        return metadata
+
+    def restore(
+        self,
+        matrix: InteractionMatrix,
+        metadata: Mapping[str, Any],
+        arrays: Mapping[str, np.ndarray],
+    ) -> MatrixRanker:
+        """Restore a saved model onto the matrix it was fitted on."""
+
+        if metadata.get("format") != MODEL_FORMAT:
+            raise ValueError("unsupported model file format")
+        if metadata.get("model_id") != self.model_id:
+            raise ValueError("model file belongs to a different model")
+        if metadata.get("data_fingerprint") != matrix.fingerprint:
+            raise ValueError("model file was fitted on different data")
+        self._bind(matrix, metadata["cutoff_timestamp"], metadata.get("snapshot_id"))
+        self._restore_state(matrix, arrays)
+        self._finalize_hash()
+        if self._model_hash != metadata.get("model_hash"):
+            raise ValueError("restored model hash does not match the model file")
         return self
 
     @property
@@ -138,6 +220,10 @@ class MatrixRanker:
         if self._model_hash is None:
             raise RuntimeError(f"{type(self).__name__} must be fitted before reading model_hash")
         return self._model_hash
+
+    @property
+    def snapshot_id(self) -> str | None:
+        return self._snapshot_id
 
     @property
     def matrix(self) -> InteractionMatrix:

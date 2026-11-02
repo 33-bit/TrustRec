@@ -15,6 +15,19 @@ hashes.
 The command also runs B2 BPR MF and B3 personalized PageRank. B2 uses seed
 7 when no seed is supplied. B3 uses damping 0.85 when no damping is supplied.
 
+Use `scripts/run_rankings_batch.py` for full-snapshot runs. It fits one
+baseline once, selects every user with an eligible target, and writes top-K
+JSON Lines rows plus a run manifest. The rows declare their candidate pool by
+signature, so `scripts/run_evaluation.py` can read them directly. Use
+`--workers` on Linux to split scoring across forked processes.
+
+```bash
+PYTHONPATH=src python3 scripts/run_rankings_batch.py \
+  --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json \
+  --model b1_item_knn --cutoff t1 --k 100 --workers 4 \
+  --output artifacts/rankings/b1_t1.jsonl
+```
+
 Use `scripts/build_evidence_profiles.py` to aggregate flat evidence JSON Lines
 before a cutoff. The output keeps source, snapshot, configuration, and model
 hashes. Use `scripts/run_hybrid.py` to combine prepared MF, graph, and aspect

@@ -1,8 +1,8 @@
 # Task: T6.4 (partial): Full Video Games baseline results
 
-Status: B0 through B3 are done on the real `t1` test set. BPR MF is tuned on
-`t0` and run with seeds 7, 17, and 27. H0 and T0 wait for T6.3. B1 and B3 have
-not received a matching tuning budget yet.
+Status: B0 through B3 are done on the real `t1` test set. B1, B2, and B3 each
+received a 9-trial validation budget on `t0`. B2 is run with seeds 7, 17, and
+27. H0 and T0 wait for T6.3.
 
 ## Lineage
 
@@ -114,5 +114,27 @@ PYTHONPATH=src python3 scripts/run_rankings_batch.py --snapshot-manifest data/ma
 
 Open points:
 
-- The protocol asks for an equal tuning budget per model. B1 (`neighbor_limit`) and B3 (`damping`, `max_iter`) should each get 9 validation trials before the final comparison.
 - On this very sparse data (about 1.7 interactions per user), BPR does not beat popularity. A wider BPR search, such as fewer dimensions or more negative samples, would need a new recorded budget.
+
+## B1 and B3 tuning on `t0` (update)
+
+`scripts/tune_baseline.py` gives B1 and B3 the same 9-trial validation budget
+as B2. It uses 75,414 validation users, seed 7, and 200 bootstrap samples.
+Validation popularity NDCG@10 is 0.0378.
+
+| Model | Grid | Best setting | Best NDCG@10 | Difference from popularity |
+| --- | --- | --- | --- | --- |
+| B1 item kNN | `neighbor_limit` in {all, 5, 10, 20, 50, 100, 200, 500, 1000} | all neighbors | 0.0356 | -0.00225 [-0.00262, -0.00194] |
+| B3 PPR | damping {0.5, 0.7, 0.85} × `max_iter` {10, 30, 100} | 0.85, 100 | 0.0392 | +0.00135 [+0.00099, +0.00166] |
+
+Every B1 setting scores about the same and stays below popularity. B3
+improves as damping rises. Both winners equal the default settings, so the
+B1 and B3 test runs above are already the tuned runs. The B1 grid took 446 s
+and the B3 grid took 3,323 s on 4 cores.
+
+| Model | Validation tuning | Test NDCG@10 | Difference from B0 on test |
+| --- | --- | --- | --- |
+| B0 most popular | none | 0.0268 | |
+| B1 item kNN | 9 trials | 0.0256 | -0.0012 [-0.0016, -0.0008] |
+| B2 BPR MF, mean of 3 seeds | 9 trials | 0.0268 | about 0 (seed SD 0.0004) |
+| B3 PPR | 9 trials | 0.0284 | +0.0015 [+0.0012, +0.0020] |

@@ -19,6 +19,6 @@
 | T5.2 | done | [Build the five-minute Streamlit demo](t5_2-streamlit-demo.md) | T4.2 | owner 3 | demo follows `docs/specs/demo-contract.md` and the AppTest smoke run passes |
 | T5.3 | done | [Package report and reproducibility bundle](t5_3-report-bundle.md) | T5.1,T5.2 | all | every claim links to a manifest and command |
 | T6.1 | done: code and synthetic full-size run | [Make B0–B3 and the evaluator run on the full snapshot](t6_1-scalable-rankings.md) | T3.2,T5.1 | owner 3 | `scripts/run_rankings_batch.py` rows pass `scripts/run_evaluation.py`; ADR-0014 records the changes |
-| T6.2 | done: pipeline and dictionary labeler; LLM choice open (ADR-0015) | [Label aspect evidence for the full review corpus before each cutoff](t6_2-corpus-evidence.md) | T2.3 | owner 2 | evidence rows for every in-scope review feed `scripts/build_evidence_profiles.py` |
-| T6.3 | todo | Batch H0 and T0 rows from full-catalog component scores | T6.1,T6.2 | owner 3 | H0 and T0 JSON Lines rows pass `scripts/run_evaluation.py` |
-| T6.4 | in progress: B0–B3 done, B2 tuned with 3 seeds | [Run the full Video Games evaluation for every model and seed](t6_4-baseline-results.md) | T6.1,T6.3 | owner 1 | metrics, manifests, and the T5.3 bundle use real ranking files |
+| T6.2 | in progress: dictionary evidence done; DeepSeek labels at 1.2% (budget) | [Label aspect evidence for the full review corpus before each cutoff](t6_2-corpus-evidence.md) | T2.3 | owner 2 | evidence rows for every in-scope review feed `scripts/build_evidence_profiles.py` |
+| T6.3 | code done; real run paused by owner | Batch H0 and T0 rows from full-catalog component scores | T6.1,T6.2 | owner 3 | H0 and T0 JSON Lines rows pass `scripts/run_evaluation.py` |
+| T6.4 | in progress: B0–B3 tuned and evaluated; H0/T0 pending | [Run the full Video Games evaluation for every model and seed](t6_4-baseline-results.md) | T6.1,T6.3 | owner 1 | metrics, manifests, and the T5.3 bundle use real ranking files |

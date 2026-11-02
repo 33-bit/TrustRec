@@ -13,3 +13,8 @@ PYTHONPATH=src python3 scripts/run_nlp_baselines.py
 ```
 
 Read the [T2.3 report](../../../docs/tasks/t2_3-nlp-baselines.md) and [baseline contract](../../../docs/specs/nlp-baseline-contract.md) for the fixed settings, split limits, metrics, and artifact paths.
+
+`corpus.py` turns pre-cutoff review texts into flat evidence rows for item
+aspect profiles. `scripts/label_corpus_evidence.py` runs it over a snapshot with
+the dictionary labeler. These rows have label status `rule_baseline`. They are
+neither LLM labels nor human gold labels. See ADR-0015.

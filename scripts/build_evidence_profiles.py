@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,37 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+PROFILE_FIELDS = (
+    "review_id",
+    "item_id",
+    "aspect",
+    "sentiment",
+    "polarity",
+    "sentiment_score",
+    "score",
+    "confidence",
+    "timestamp",
+    "source_timestamp",
+    "author_id",
+    "user_id",
+    "duplicate_group",
+    "labels",
+)
+
+
+def _read_evidence(path: Path) -> Iterator[dict[str, Any]]:
+    """Stream evidence rows with only the fields that profiles use."""
+
+    with path.open(encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            value = json.loads(line)
+            if not isinstance(value, dict):
+                raise ValueError(f"{path}:{line_number} must contain an object")
+            yield {key: value[key] for key in PROFILE_FIELDS if key in value}
 
 
 def build_profiles(
@@ -40,17 +72,8 @@ def build_profiles(
         raise ValueError("snapshot_id and dataset_hash must be non-empty")
     if not evidence_path.is_file():
         raise FileNotFoundError(f"evidence artifact does not exist: {evidence_path}")
-    rows: list[dict[str, Any]] = []
-    with evidence_path.open(encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            if not line.strip():
-                continue
-            value = json.loads(line)
-            if not isinstance(value, dict):
-                raise ValueError(f"{evidence_path}:{line_number} must contain an object")
-            rows.append(value)
     profiles = aggregate_evidence(
-        rows,
+        _read_evidence(evidence_path),
         cutoff_timestamp=cutoff_timestamp,
         prior_scores=prior_scores,
         shrinkage_lambda=shrinkage_lambda,

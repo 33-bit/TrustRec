@@ -38,7 +38,7 @@ rows, which give 54,994 evaluation users. Real data will differ.
 | Build interaction matrix | about 12 s |
 | B0 batch, 4 workers | 24 s |
 | B1 batch, 4 workers | 333 s |
-| B2 batch, 50 epochs, 4 workers | measurement pending |
+| B2 batch, 50 epochs, 4 workers | 436 s (fit 248 s, scoring 174 s) |
 | B3 scoring | about 0.3 to 0.4 s per user per core at `max_iter=100` |
 | `run_evaluation.py` with B0 and B1 | 113 s, 2.8 GB peak memory |
 

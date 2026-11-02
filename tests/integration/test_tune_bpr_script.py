@@ -76,3 +76,26 @@ def test_tune_bpr_records_every_trial_and_saves_the_best(tmp_path: Path) -> None
 def test_tune_bpr_refuses_the_test_cutoff(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="t0"):
         tune_bpr(_write_snapshot(tmp_path), output_path=tmp_path / "x.json", cutoff_name="t1")
+
+
+@pytest.mark.parametrize(
+    ("model_id", "grid"),
+    [
+        ("b1_item_knn", [{"n_neighbors": None}, {"n_neighbors": 2}]),
+        ("b3_ppr", [{"damping": 0.5, "max_iter": 5}, {"damping": 0.85, "max_iter": 10}]),
+    ],
+)
+def test_tune_baseline_supports_knn_and_ppr(tmp_path: Path, model_id: str, grid) -> None:
+    from scripts.tune_baseline import tune_baseline
+
+    result = tune_baseline(
+        _write_snapshot(tmp_path),
+        model_id=model_id,
+        output_path=tmp_path / "tuning.json",
+        grid=grid,
+        bootstrap_samples=20,
+    )
+
+    assert result["model_id"] == model_id
+    assert result["tuning_budget"]["trials"] == 2
+    assert result["grid"] == grid

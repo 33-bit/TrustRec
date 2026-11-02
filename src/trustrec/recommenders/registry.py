@@ -88,7 +88,7 @@ def create_baseline(model_id: str, parameters: BaselineParameters) -> MatrixRank
     )
 
 
-def _ranker_class(model_id: str) -> type[MatrixRanker]:
+def ranker_class(model_id: str) -> type[MatrixRanker]:
     if model_id == "b0_most_popular":
         return PopularityRanker
     if model_id == "b1_item_knn":
@@ -122,5 +122,5 @@ def load_baseline(path: Path, matrix: InteractionMatrix) -> MatrixRanker:
     model_id = metadata.get("model_id")
     if model_id not in BASELINE_MODEL_IDS:
         raise ValueError(f"unsupported model_id in model file: {model_id}")
-    ranker = _ranker_class(model_id)(**metadata["init_parameters"])
+    ranker = ranker_class(model_id)(**metadata["init_parameters"])
     return ranker.restore(matrix, metadata, arrays)

@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import multiprocessing
+import os
 import time
 from collections.abc import Iterator
 from pathlib import Path
@@ -22,6 +23,7 @@ from trustrec.nlp.corpus import (
     label_reviews,
 )
 from trustrec.nlp.dictionary import DictionaryBaseline
+from trustrec.nlp.llm_labeler import PROMPT_VERSION, CachedLLMLabeler, load_cache, prompt_hash
 from trustrec.recommenders.contracts import stable_model_hash, timestamp_value
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -34,8 +36,11 @@ TEXT_COLUMNS = (
     "source_text_sha256",
     "duplicate_group",
 )
-LABELERS = ("dictionary",)
-LABEL_STATUS = {"dictionary": "rule_baseline"}
+LABELERS = ("dictionary", "llm-cache")
+LABEL_STATUS = {"dictionary": "rule_baseline", "llm-cache": "llm_silver"}
+
+# A forked worker reads the active labeler from this module global.
+_LABELER_STATE: dict[str, Any] = {}
 USAGE = (
     "Evidence construction for item aspect profiles before the recorded cutoff. "
     "Not a human gold label, not an LLM label, and not for NLP evaluation."
@@ -117,7 +122,9 @@ def _review_batches(
 
 
 def _label_batch(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], LabelingSummary]:
-    return label_reviews(rows, DictionaryBaseline(), label_source=DICTIONARY_LABELER_VERSION)
+    labeler = _LABELER_STATE.get("labeler") or DictionaryBaseline()
+    source = _LABELER_STATE.get("label_source", DICTIONARY_LABELER_VERSION)
+    return label_reviews(rows, labeler, label_source=source)
 
 
 def _assert_completed_manifest_is_absent(path: Path) -> None:
@@ -138,6 +145,9 @@ def label_corpus(
     output_path: Path,
     run_manifest_path: Path | None = None,
     labeler: str = "dictionary",
+    label_cache_path: Path | None = None,
+    llm_model_id: str | None = None,
+    llm_reasoning_effort: str | None = "none",
     workers: int = 1,
     batch_size: int = 20_000,
 ) -> dict[str, Any]:
@@ -147,6 +157,23 @@ def label_corpus(
         raise ValueError(f"unsupported cutoff_name: {cutoff_name}")
     if labeler not in LABELERS:
         raise ValueError(f"unsupported labeler: {labeler}")
+    if labeler == "llm-cache":
+        if label_cache_path is None or not llm_model_id:
+            raise ValueError("llm-cache needs label_cache_path and llm_model_id")
+        records = load_cache(label_cache_path, llm_model_id, llm_reasoning_effort)
+        label_source = f"{llm_model_id}:{PROMPT_VERSION}:{llm_reasoning_effort}"
+        labeler_hash = stable_model_hash(
+            {
+                "label_source": label_source,
+                "prompt_sha256": prompt_hash(),
+                "cache_sha256": _sha256_file(label_cache_path),
+            }
+        )
+        _LABELER_STATE.update(labeler=CachedLLMLabeler(records), label_source=label_source)
+    else:
+        label_source = DICTIONARY_LABELER_VERSION
+        labeler_hash = dictionary_fingerprint()
+        _LABELER_STATE.clear()
     if isinstance(workers, bool) or not isinstance(workers, int) or workers < 1:
         raise ValueError("workers must be a positive integer")
     if isinstance(batch_size, bool) or not isinstance(batch_size, int) or batch_size < 1:
@@ -201,8 +228,7 @@ def label_corpus(
                     handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
     elapsed_ms = (time.perf_counter() - began) * 1000.0
 
-    labeler_hash = dictionary_fingerprint()
-    configuration = {"labeler": labeler, "labeler_version": DICTIONARY_LABELER_VERSION}
+    configuration = {"labeler": labeler, "label_source": label_source}
     run_manifest = {
         "schema_version": 1,
         "task": "T6.2",
@@ -218,7 +244,7 @@ def label_corpus(
         "dataset_hash": manifest["dataset_hash"],
         "cutoff_name": cutoff_name,
         "source_cutoff_timestamp": cutoff_timestamp,
-        "label_source": DICTIONARY_LABELER_VERSION,
+        "label_source": label_source,
         "label_status": LABEL_STATUS[labeler],
         "usage": USAGE,
         "configuration": configuration,
@@ -255,6 +281,9 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--labeler", choices=LABELERS, default="dictionary")
+    parser.add_argument("--label-cache", type=Path, help="LLM label cache for --labeler llm-cache")
+    parser.add_argument("--llm-model", default=os.environ.get("MODEL"))
+    parser.add_argument("--llm-reasoning-effort", default="none")
     parser.add_argument("--workers", type=_positive_integer, default=1)
     parser.add_argument("--batch-size", type=_positive_integer, default=20_000)
     args = parser.parse_args()
@@ -264,6 +293,9 @@ def main() -> None:
         output_path=args.output,
         run_manifest_path=args.manifest,
         labeler=args.labeler,
+        label_cache_path=args.label_cache,
+        llm_model_id=args.llm_model,
+        llm_reasoning_effort=args.llm_reasoning_effort,
         workers=args.workers,
         batch_size=args.batch_size,
     )

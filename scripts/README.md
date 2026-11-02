@@ -28,6 +28,11 @@ PYTHONPATH=src python3 scripts/run_rankings_batch.py \
   --output artifacts/rankings/b1_t1.jsonl
 ```
 
+Use `scripts/label_corpus_evidence.py` to label every review before one
+cutoff with the dictionary labeler. The command reads `review_texts` and the
+cutoff's interaction table, keeps only pre-cutoff reviews from that table, and
+writes evidence JSON Lines plus a manifest. It never reads ratings.
+
 Use `scripts/build_evidence_profiles.py` to aggregate flat evidence JSON Lines
 before a cutoff. The output keeps source, snapshot, configuration, and model
 hashes. Use `scripts/run_hybrid.py` to combine prepared MF, graph, and aspect

@@ -107,12 +107,37 @@ class ReviewResult:
         }
 
 
+def extract_json_object(content: str) -> Any:
+    """Parse a JSON response, or the last complete object with a ``reviews`` key.
+
+    Some OpenAI-compatible gateways wrap JSON in code fences or emit an
+    interrupted attempt before the full answer. Plain JSON parses directly.
+    """
+
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        pass
+    decoder = json.JSONDecoder()
+    found: Any = None
+    for match in re.finditer(r"\{\s*\"reviews\"", content):
+        try:
+            value, _ = decoder.raw_decode(content, match.start())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict) and isinstance(value.get("reviews"), list):
+            found = value
+    if found is None:
+        raise ValueError("response has no complete JSON object with reviews")
+    return found
+
+
 def parse_response(
     content: str, reviews: Sequence[Mapping[str, Any]], max_chars: int
 ) -> list[ReviewResult]:
     """Validate a batch response against the reviews that were sent."""
 
-    payload = json.loads(content)
+    payload = extract_json_object(content)
     entries = payload.get("reviews") if isinstance(payload, dict) else None
     if not isinstance(entries, list):
         raise ValueError("response has no reviews list")

@@ -152,3 +152,15 @@ def test_cached_labeler_serves_labels_and_refusals() -> None:
     assert labeled["labels"][0]["sentiment_score"] == 1.0
     assert labeler.predict(text, review_id="missing")["refusal_reason"] == "not_labeled"
     assert labeler.predict("changed", review_id="r1")["refusal_reason"] == "text_changed"
+
+
+def test_parse_response_recovers_the_last_complete_object() -> None:
+    reviews = [_review("r1", "Great story.")]
+    label = {"aspect": "story", "polarity": "positive", "evidence": "Great story"}
+    good = json.dumps({"reviews": [{"id": 0, "labels": [label]}]})
+    broken = '{"reviews": [{"id": 0, "labels": {"aspect": "story"' + good
+    fenced = "```json\n" + good + "\n```"
+
+    for content in (broken, fenced):
+        (result,) = parse_response(content, reviews, max_chars=100)
+        assert [label["aspect"] for label in result.labels] == ["story"]

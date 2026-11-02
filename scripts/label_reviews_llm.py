@@ -9,7 +9,7 @@ import os
 import threading
 import time
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,11 +19,13 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
+from trustrec.data.hf_sync import HFSync
 from trustrec.nlp.llm_labeler import (
     PROMPT_VERSION,
     ChatClient,
     InsufficientBalanceError,
     ReviewResult,
+    ShardedCacheWriter,
     UsageTotals,
     batched,
     label_batch,
@@ -109,8 +111,17 @@ def run_llm_labeling(
     min_balance: float | None = 1.0,
     balance_every: int = 50,
     balance_reader: Any = None,
+    rows_per_part: int = 50_000,
+    sync: Callable[[], Any] | None = None,
+    sync_every_s: float = 600.0,
 ) -> dict[str, Any]:
-    """Label uncached reviews and append one JSON line per review to the cache."""
+    """Label uncached reviews and append one JSON line per review to the cache.
+
+    ``cache_path`` is a single JSON Lines file or a directory of ``part-*.jsonl``
+    files. A directory suits long runs: finished parts never change, and
+    ``sync`` (for example an upload to a dataset repository) runs every
+    ``sync_every_s`` seconds and once at the end.
+    """
 
     if scope not in INTERACTIONS_BY_SCOPE:
         raise ValueError(f"unsupported scope: {scope}")
@@ -128,7 +139,16 @@ def run_llm_labeling(
     stop_reason = "complete"
     began = time.perf_counter()
     lock = threading.Lock()
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    sharded = cache_path.is_dir() or not cache_path.suffix
+    if sharded:
+        writer: Any = ShardedCacheWriter(cache_path, rows_per_part=rows_per_part)
+        runs_path = cache_path / "runs.jsonl"
+    else:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        writer = cache_path.open("a", encoding="utf-8")
+        runs_path = cache_path.with_suffix(".runs.jsonl")
+    last_sync = time.monotonic()
+    sync_results: list[Any] = []
 
     def work(batch: list[dict[str, Any]]) -> tuple[list[Any], dict[str, Any]]:
         return label_batch(client, batch, max_chars)
@@ -139,7 +159,7 @@ def run_llm_labeling(
             yield empty
         yield from batched((row for row in pending if row["text"].strip()), batch_size)
 
-    with cache_path.open("a", encoding="utf-8") as handle, ThreadPoolExecutor(workers) as pool:
+    with ThreadPoolExecutor(workers) as pool:
         in_flight: dict[Future[Any], tuple[str, list[dict[str, Any]]]] = {}
         source = batches()
         stop = False
@@ -147,7 +167,7 @@ def run_llm_labeling(
         def write(results: list[Any], request_id: str) -> None:
             with lock:
                 for result in results:
-                    handle.write(
+                    writer.write(
                         json.dumps(
                             result.to_record(client.model_id, request_id, client.reasoning_effort),
                             ensure_ascii=False,
@@ -155,7 +175,7 @@ def run_llm_labeling(
                         + "\n"
                     )
                     outcomes[result.error or ("labeled" if result.labels else "no_labels")] += 1
-                handle.flush()
+                writer.flush()
 
         while True:
             while not stop and len(in_flight) < workers * 2:
@@ -200,6 +220,14 @@ def run_llm_labeling(
                     balance = read_balance()
                     if balance is not None and balance < min_balance:
                         stop, stop_reason = True, "min_balance_reached"
+                if sync is not None and time.monotonic() - last_sync >= sync_every_s:
+                    with lock:
+                        writer.flush()
+                    try:
+                        sync_results.append(sync())
+                    except Exception as error:  # keep labeling when an upload fails
+                        sync_results.append({"error": str(error)[:200]})
+                    last_sync = time.monotonic()
                 if usage.requests % 100 == 0:
                     progress = {
                         "requests": usage.requests,
@@ -212,6 +240,7 @@ def run_llm_labeling(
     if stop_reason == "complete" and max_reviews is not None and remaining > max_reviews:
         stop_reason = "max_reviews_reached"
 
+    writer.close()
     final_cache = load_cache(cache_path, client.model_id, client.reasoning_effort)
     end_balance = read_balance() if min_balance is not None else None
     run = {
@@ -247,8 +276,14 @@ def run_llm_labeling(
         "finished_at": datetime.now(UTC).isoformat(),
         "status": "complete" if len(final_cache) == len(reviews) else "partial",
     }
-    with cache_path.with_suffix(".runs.jsonl").open("a", encoding="utf-8") as runs:
+    with runs_path.open("a", encoding="utf-8") as runs:
         runs.write(json.dumps(run, ensure_ascii=False, sort_keys=True) + "\n")
+    if sync is not None:
+        try:
+            sync_results.append(sync())
+        except Exception as error:
+            sync_results.append({"error": str(error)[:200]})
+        run["sync_results"] = sync_results[-3:]
     return run
 
 
@@ -266,7 +301,27 @@ def main() -> None:
     parser.add_argument("--max-reviews", type=int)
     parser.add_argument("--max-chars", type=int, default=4000)
     parser.add_argument("--min-balance", type=float, default=1.0)
+    parser.add_argument("--rows-per-part", type=int, default=50_000)
+    parser.add_argument("--hf-repo", help="dataset repository to mirror the cache directory")
+    parser.add_argument("--hf-prefix", help="folder inside the repository, for example llm/<model>")
+    parser.add_argument("--hf-token-env", default="HF_KEY")
+    parser.add_argument("--hf-allow-public", action="store_true")
+    parser.add_argument("--sync-minutes", type=float, default=10.0)
     args = parser.parse_args()
+    sync = None
+    if args.hf_repo:
+        if not args.hf_prefix:
+            raise SystemExit("--hf-prefix is required with --hf-repo")
+        hf = HFSync(
+            repo_id=args.hf_repo,
+            local_dir=args.cache,
+            prefix=args.hf_prefix,
+            token_env=args.hf_token_env,
+            allow_public=args.hf_allow_public,
+        )
+        hf.check_visibility()
+        print(json.dumps({"hf_pull": hf.pull()}), flush=True)
+        sync = hf.push
     api_key = os.environ.get(args.api_key_env)
     if not api_key:
         raise SystemExit(f"set {args.api_key_env} to the provider API key")
@@ -284,7 +339,10 @@ def main() -> None:
         workers=args.workers,
         max_reviews=args.max_reviews,
         max_chars=args.max_chars,
-        min_balance=args.min_balance,
+        min_balance=None if args.min_balance < 0 else args.min_balance,
+        rows_per_part=args.rows_per_part,
+        sync=sync,
+        sync_every_s=args.sync_minutes * 60.0,
     )
     summary = {key: run[key] for key in ("cached_reviews", "scope_reviews", "coverage", "status")}
     print(json.dumps({**summary, "this_run": run["this_run"]}, ensure_ascii=False))

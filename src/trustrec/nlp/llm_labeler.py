@@ -335,24 +335,83 @@ def load_cache(
     """
 
     records: dict[str, dict[str, Any]] = {}
-    if not path.is_file():
-        return records
-    with path.open(encoding="utf-8") as handle:
-        for line in handle:
-            if not line.strip():
-                continue
-            try:
-                record = json.loads(line)
-            except json.JSONDecodeError:
-                continue  # a partial last line from an interrupted run
-            if record.get("error") or record.get("prompt_version") != PROMPT_VERSION:
-                continue
-            if record.get("model_id") != model_id:
-                continue
-            if record.get("reasoning_effort") != reasoning_effort:
-                continue
-            records[record["review_id"]] = record
+    for part in cache_files(path):
+        with part.open(encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue  # a partial last line from an interrupted run
+                if record.get("error") or record.get("prompt_version") != PROMPT_VERSION:
+                    continue
+                if record.get("model_id") != model_id:
+                    continue
+                if record.get("reasoning_effort") != reasoning_effort:
+                    continue
+                records[record["review_id"]] = record
     return records
+
+
+def cache_files(path: Path) -> list[Path]:
+    """Return cache part files: one file, or ``part-*.jsonl`` inside a directory."""
+
+    if path.is_dir():
+        return sorted(path.glob("part-*.jsonl"))
+    return [path] if path.is_file() else []
+
+
+class ShardedCacheWriter:
+    """Append records to ``part-NNNNN.jsonl`` files of bounded size.
+
+    Finished parts never change, so a sync step uploads each one once and only
+    re-uploads the open part. A partial last line from a crash is skipped on
+    load and the next record starts on a new line.
+    """
+
+    def __init__(self, directory: Path, rows_per_part: int = 50_000) -> None:
+        if rows_per_part < 1:
+            raise ValueError("rows_per_part must be positive")
+        self.directory = directory
+        self.rows_per_part = rows_per_part
+        directory.mkdir(parents=True, exist_ok=True)
+        parts = cache_files(directory)
+        self.index = int(parts[-1].stem.split("-")[1]) if parts else 0
+        self.rows = self._count(self._path()) if parts else 0
+        self.handle = self._open()
+
+    def _path(self) -> Path:
+        return self.directory / f"part-{self.index:05d}.jsonl"
+
+    @staticmethod
+    def _count(path: Path) -> int:
+        if not path.is_file():
+            return 0
+        with path.open("rb") as handle:
+            return sum(1 for _ in handle)
+
+    def _open(self) -> Any:
+        path = self._path()
+        handle = path.open("a", encoding="utf-8")
+        if path.stat().st_size and not path.read_bytes().endswith(b"\n"):
+            handle.write("\n")
+        return handle
+
+    def write(self, line: str) -> None:
+        if self.rows >= self.rows_per_part:
+            self.handle.close()
+            self.index += 1
+            self.rows = 0
+            self.handle = self._open()
+        self.handle.write(line if line.endswith("\n") else line + "\n")
+        self.rows += 1
+
+    def flush(self) -> None:
+        self.handle.flush()
+
+    def close(self) -> None:
+        self.handle.close()
 
 
 class CachedLLMLabeler:

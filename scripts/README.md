@@ -28,6 +28,20 @@ PYTHONPATH=src python3 scripts/run_rankings_batch.py \
   --output artifacts/rankings/b1_t1.jsonl
 ```
 
+Pass `--save-model PATH.npz` to `scripts/run_rankings_batch.py` to keep the
+fitted model, and `--load-model PATH.npz` to reuse it without refitting. A
+model file holds learned arrays and metadata, not pickled code. Loading checks
+the data fingerprint, the parameters, and the model hash.
+
+Use `scripts/tune_bpr.py` to tune BPR MF on the `t0` validation split. It
+refuses the `t1` test cutoff, records every trial and the trial budget, and
+can save the best model.
+
+Use `scripts/label_corpus_evidence.py` to label every review before one
+cutoff with the dictionary labeler. The command reads `review_texts` and the
+cutoff's interaction table, keeps only pre-cutoff reviews from that table, and
+writes evidence JSON Lines plus a manifest. It never reads ratings.
+
 Use `scripts/build_evidence_profiles.py` to aggregate flat evidence JSON Lines
 before a cutoff. The output keeps source, snapshot, configuration, and model
 hashes. Use `scripts/run_hybrid.py` to combine prepared MF, graph, and aspect

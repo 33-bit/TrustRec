@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
 
-from .base import MatrixRanker
+import numpy as np
+
+from .base import METADATA_KEY, MatrixRanker
 from .bpr_mf import BPRMFRanker
 from .item_knn import ItemKNNRanker
+from .matrix import InteractionMatrix
 from .popularity import PopularityRanker
 
 BASELINE_MODEL_IDS = ("b0_most_popular", "b1_item_knn", "b2_bpr_mf", "b3_ppr")
@@ -80,3 +86,41 @@ def create_baseline(model_id: str, parameters: BaselineParameters) -> MatrixRank
         seed=seed,
         batch_size=parameters.ppr_batch_size,
     )
+
+
+def ranker_class(model_id: str) -> type[MatrixRanker]:
+    if model_id == "b0_most_popular":
+        return PopularityRanker
+    if model_id == "b1_item_knn":
+        return ItemKNNRanker
+    if model_id == "b2_bpr_mf":
+        return BPRMFRanker
+    if model_id == "b3_ppr":
+        from trustrec.graph.personalized_pagerank import PersonalizedPageRankRanker
+
+        return PersonalizedPageRankRanker
+    raise ValueError(f"unsupported model_id: {model_id}")
+
+
+def read_model_file(path: Path) -> tuple[dict[str, Any], dict[str, np.ndarray]]:
+    """Read model metadata and learned arrays without executing pickled code."""
+
+    if not path.is_file():
+        raise FileNotFoundError(f"model file does not exist: {path}")
+    with np.load(path, allow_pickle=False) as data:
+        if METADATA_KEY not in data.files:
+            raise ValueError("model file has no metadata")
+        metadata = json.loads(str(data[METADATA_KEY]))
+        arrays = {name: data[name] for name in data.files if name != METADATA_KEY}
+    return metadata, arrays
+
+
+def load_baseline(path: Path, matrix: InteractionMatrix) -> MatrixRanker:
+    """Rebuild a saved baseline on the matrix it was fitted on."""
+
+    metadata, arrays = read_model_file(path)
+    model_id = metadata.get("model_id")
+    if model_id not in BASELINE_MODEL_IDS:
+        raise ValueError(f"unsupported model_id in model file: {model_id}")
+    ranker = ranker_class(model_id)(**metadata["init_parameters"])
+    return ranker.restore(matrix, metadata, arrays)

@@ -63,6 +63,13 @@ class ItemKNNRanker(MatrixRanker):
             "tie_break": "item_id_ascending",
         }
 
+    def init_parameters(self) -> dict[str, Any]:
+        return {
+            "positive_threshold": self.positive_threshold,
+            "n_neighbors": self.n_neighbors,
+            "seed": self.seed,
+        }
+
     def _hash_configuration(self) -> dict[str, Any]:
         return {"positive_threshold": self.positive_threshold, "n_neighbors": self.n_neighbors}
 

@@ -65,6 +65,16 @@ class PersonalizedPageRankRanker(MatrixRanker):
             "tie_break": "item_id_ascending",
         }
 
+    def init_parameters(self) -> dict[str, Any]:
+        return {
+            "damping": self.damping,
+            "positive_threshold": self.positive_threshold,
+            "max_iter": self.max_iter,
+            "tol": self.tol,
+            "seed": self.seed,
+            "batch_size": self.batch_size,
+        }
+
     def _hash_configuration(self) -> dict[str, Any]:
         return {
             "damping": self.damping,

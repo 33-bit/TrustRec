@@ -34,3 +34,25 @@ container. Run these steps from the repository root in a new session.
    Pass `--model <name>` to use a model other than `MODEL`. A different model or reasoning setting labels every review again and never mixes with cached labels.
 
 5. Rebuild rankings and models with the commands in [T6.4](t6_4-baseline-results.md). Seeds make every run reproducible.
+
+## Resume LLM labeling from the Hugging Face mirror
+
+The LLM label caches are mirrored to the private dataset `33bit/trustrec`:
+
+| Prefix | Content |
+| --- | --- |
+| `llm/deepseek-flash/` | 18,537 DeepSeek labels (single file) |
+| `llm/gpt-6-luna/` | `part-NNNNN.jsonl` shards from the gpt-6-luna run |
+
+Set `HF_KEY` (a write token) and the provider key in the environment
+settings, install `huggingface_hub`, and rerun the same command. The script
+downloads missing shards before it starts, skips labeled reviews, and uploads
+changed shards every `--sync-minutes`. It stops after 20 consecutive failed
+batches, so a later rerun continues where it stopped.
+
+```bash
+pip install huggingface_hub
+PYTHONPATH=src python3 scripts/label_reviews_llm.py --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json --cache artifacts/llm/gpt-6-luna --model gpt-6-luna --base-url <provider base URL> --api-key-env GPT_API --reasoning-effort "" --batch-size 20 --workers 16 --min-balance -1 --hf-repo 33bit/trustrec --hf-prefix llm/gpt-6-luna --sync-minutes 10
+```
+
+The uploader refuses a public repository unless `--hf-allow-public` is passed.

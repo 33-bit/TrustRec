@@ -8,7 +8,7 @@ import json
 import os
 import threading
 import time
-from collections import Counter
+from collections import Counter, deque
 from collections.abc import Callable, Iterator
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from datetime import UTC, datetime
@@ -115,6 +115,8 @@ def run_llm_labeling(
     sync: Callable[[], Any] | None = None,
     sync_every_s: float = 600.0,
     max_consecutive_failures: int = 20,
+    cooldown_s: float = 300.0,
+    max_cooldowns: int = 12,
 ) -> dict[str, Any]:
     """Label uncached reviews and append one JSON line per review to the cache.
 
@@ -151,6 +153,9 @@ def run_llm_labeling(
     last_sync = time.monotonic()
     sync_results: list[Any] = []
     consecutive_failures = 0
+    cooldowns = 0
+    paused_until: float | None = None
+    retry_queue: deque[list[dict[str, Any]]] = deque()
 
     def work(batch: list[dict[str, Any]]) -> tuple[list[Any], dict[str, Any]]:
         return label_batch(client, batch, max_chars)
@@ -180,8 +185,11 @@ def run_llm_labeling(
                 writer.flush()
 
         while True:
-            while not stop and len(in_flight) < workers * 2:
-                batch = next(source, None)
+            if paused_until is not None and not in_flight:
+                time.sleep(max(0.0, paused_until - time.monotonic()))
+                paused_until = None
+            while not stop and paused_until is None and len(in_flight) < workers * 2:
+                batch = retry_queue.popleft() if retry_queue else next(source, None)
                 if batch is None:
                     break
                 stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
@@ -215,11 +223,22 @@ def run_llm_labeling(
                 except RuntimeError as error:
                     usage.failed_requests += 1
                     usage.errors[str(error)[:80]] = usage.errors.get(str(error)[:80], 0) + 1
+                    retry_queue.append(batch)
                     consecutive_failures += 1
-                    if consecutive_failures >= max_consecutive_failures:
-                        stop, stop_reason = True, "too_many_consecutive_failures"
+                    if consecutive_failures >= max_consecutive_failures and paused_until is None:
+                        if cooldowns >= max_cooldowns:
+                            stop, stop_reason = True, "too_many_consecutive_failures"
+                        else:
+                            cooldowns += 1
+                            consecutive_failures = 0
+                            paused_until = time.monotonic() + cooldown_s
+                            print(
+                                json.dumps({"cooldown": cooldowns, "seconds": cooldown_s}),
+                                flush=True,
+                            )
                     continue
                 consecutive_failures = 0
+                cooldowns = 0
                 usage.add(request_usage, len(batch))
                 write(results, request_id)
                 if min_balance is not None and usage.requests % balance_every == 0:

@@ -170,3 +170,45 @@ def test_llm_labeling_resumes_and_feeds_the_evidence_pipeline(tmp_path: Path) ->
     rows = [json.loads(line) for line in output.read_text().splitlines()]
     assert run["label_status"] == "llm_silver"
     assert rows and all(row["aspect"] == "story" for row in rows)
+
+
+def test_llm_labeling_cools_down_and_retries_failed_batches(tmp_path: Path, monkeypatch) -> None:
+    from scripts.label_reviews_llm import run_llm_labeling
+
+    from trustrec.nlp.llm_labeler import ChatClient
+
+    monkeypatch.setattr("time.sleep", lambda _: None)
+    manifest = _write_snapshot(tmp_path)
+    data = json.loads(manifest.read_text())
+    data["cutoffs"]["t1"] = CUTOFF
+    data["artifact_paths"]["fit_interactions"] = "train.parquet"
+    manifest.write_text(json.dumps(data))
+    calls = {"count": 0}
+
+    def post(*args, **kwargs):
+        calls["count"] += 1
+        reviews = json.loads(kwargs["json"]["messages"][1]["content"])
+
+        class Response:
+            status_code = 503 if calls["count"] <= 4 else 200
+
+            def json(self):
+                answer = {"reviews": [{"id": r["id"], "labels": []} for r in reviews]}
+                return {"choices": [{"message": {"content": json.dumps(answer)}}], "usage": {}}
+
+        return Response()
+
+    client = ChatClient(api_key="k", model_id="fake", post=post, max_retries=0)
+    run = run_llm_labeling(
+        manifest,
+        cache_path=tmp_path / "cache",
+        client=client,
+        batch_size=5,
+        workers=1,
+        min_balance=None,
+        max_consecutive_failures=2,
+        cooldown_s=0.0,
+    )
+
+    assert run["status"] == "complete"
+    assert run["this_run"]["usage"]["failed_requests"] == 4

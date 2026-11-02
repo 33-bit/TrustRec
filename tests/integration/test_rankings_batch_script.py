@@ -127,3 +127,43 @@ def test_batch_rankings_refuse_to_replace_a_completed_manifest(tmp_path: Path) -
         run_rankings_batch(
             manifest, model_id="b0_most_popular", cutoff_name="t1", output_path=output
         )
+
+
+def test_batch_rankings_save_and_reuse_a_model(tmp_path: Path) -> None:
+    manifest = _write_snapshot(tmp_path)
+    parameters = BaselineParameters(epochs=3, embedding_dimensions=8)
+    model = tmp_path / "bpr.npz"
+    fitted = run_rankings_batch(
+        manifest,
+        model_id="b2_bpr_mf",
+        cutoff_name="t1",
+        output_path=tmp_path / "fitted.jsonl",
+        parameters=parameters,
+        save_model_path=model,
+    )
+    loaded = run_rankings_batch(
+        manifest,
+        model_id="b2_bpr_mf",
+        cutoff_name="t1",
+        output_path=tmp_path / "loaded.jsonl",
+        parameters=parameters,
+        load_model_path=model,
+    )
+
+    assert fitted["model_hash"] == loaded["model_hash"]
+    assert loaded["model_source"] == "loaded"
+    assert fitted["model_file"]["sha256"] == loaded["model_file"]["sha256"]
+
+    def ranked(path: Path) -> list[list[str]]:
+        return [json.loads(line)["ranked_item_ids"] for line in path.read_text().splitlines()]
+
+    assert ranked(tmp_path / "fitted.jsonl") == ranked(tmp_path / "loaded.jsonl")
+    with pytest.raises(ValueError, match="parameters"):
+        run_rankings_batch(
+            manifest,
+            model_id="b2_bpr_mf",
+            cutoff_name="t1",
+            output_path=tmp_path / "other.jsonl",
+            parameters=BaselineParameters(epochs=4, embedding_dimensions=8),
+            load_model_path=model,
+        )

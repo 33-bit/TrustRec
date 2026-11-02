@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import multiprocessing
 import time
 from collections import Counter
 from collections.abc import Sequence
@@ -16,7 +15,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from trustrec.recommenders.base import MatrixRanker
+from trustrec.recommenders.batch import CANDIDATE_RULE, score_users
 from trustrec.recommenders.contracts import stable_model_hash, timestamp_value
 from trustrec.recommenders.matrix import InteractionMatrix, build_interaction_matrix
 from trustrec.recommenders.registry import (
@@ -24,16 +23,13 @@ from trustrec.recommenders.registry import (
     BaselineParameters,
     create_baseline,
     effective_seed,
+    load_baseline,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 INTERACTIONS_BY_CUTOFF = {"t0": "train_interactions", "t1": "fit_interactions"}
 TARGETS_BY_CUTOFF = {"t0": "validation_targets", "t1": "test_targets"}
-CANDIDATE_RULE = "catalog_minus_history"
 INTERACTION_COLUMNS = ("review_id", "user_id", "item_id", "rating", "timestamp")
-
-# A forked worker reads the fitted ranker from this module global.
-_WORKER_STATE: dict[str, Any] = {}
 
 
 def _sha256_file(path: Path) -> str:
@@ -131,60 +127,6 @@ def evaluation_user_ids(
     return sorted(eligible)
 
 
-def _score_users(ranker: MatrixRanker, user_ids: Sequence[str], k: int) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    prepare = getattr(ranker, "prepare", None)
-    clear = getattr(ranker, "clear_cache", None)
-    step = getattr(ranker, "batch_size", 256) if prepare is not None else 256
-    for start in range(0, len(user_ids), step):
-        chunk = list(user_ids[start : start + step])
-        began = time.perf_counter()
-        if prepare is not None:
-            prepare(chunk)
-        shared_ms = (time.perf_counter() - began) * 1000.0 / max(len(chunk), 1)
-        for user_id in chunk:
-            began = time.perf_counter()
-            recommendation = ranker.recommend(user_id, k)
-            elapsed_ms = (time.perf_counter() - began) * 1000.0 + shared_ms
-            rows.append(
-                {
-                    "user_id": user_id,
-                    "ranked_item_ids": list(recommendation.item_ids),
-                    "scores": list(recommendation.scores),
-                    "candidate_rule": CANDIDATE_RULE,
-                    "candidate_count": recommendation.candidate_count,
-                    "candidate_signature": recommendation.candidate_signature,
-                    "fallback_reason": recommendation.fallback_reason,
-                    "latency_ms": elapsed_ms,
-                }
-            )
-        if clear is not None:
-            clear()
-    return rows
-
-
-def _worker_score(user_ids: list[str]) -> list[dict[str, Any]]:
-    return _score_users(_WORKER_STATE["ranker"], user_ids, _WORKER_STATE["k"])
-
-
-def _score_all(
-    ranker: MatrixRanker, user_ids: Sequence[str], k: int, workers: int
-) -> list[dict[str, Any]]:
-    if workers <= 1 or len(user_ids) < 2:
-        return _score_users(ranker, user_ids, k)
-    if "fork" not in multiprocessing.get_all_start_methods():
-        raise RuntimeError("workers > 1 requires the fork start method")
-    chunk_size = max(1, -(-len(user_ids) // (workers * 8)))
-    chunks = [list(user_ids[i : i + chunk_size]) for i in range(0, len(user_ids), chunk_size)]
-    _WORKER_STATE.update(ranker=ranker, k=k)
-    try:
-        with multiprocessing.get_context("fork").Pool(workers) as pool:
-            parts = pool.map(_worker_score, chunks, chunksize=1)
-    finally:
-        _WORKER_STATE.clear()
-    return [row for part in parts for row in part]
-
-
 def _assert_completed_manifest_is_absent(path: Path) -> None:
     if not path.is_file():
         return
@@ -207,6 +149,8 @@ def run_rankings_batch(
     k: int = 100,
     workers: int = 1,
     user_ids: Sequence[str] | None = None,
+    save_model_path: Path | None = None,
+    load_model_path: Path | None = None,
 ) -> dict[str, Any]:
     """Fit one baseline and write a JSON Lines ranking file plus a run manifest."""
 
@@ -218,6 +162,8 @@ def run_rankings_batch(
         raise ValueError("k must be a positive integer")
     if isinstance(workers, bool) or not isinstance(workers, int) or workers < 1:
         raise ValueError("workers must be a positive integer")
+    if save_model_path is not None and load_model_path is not None:
+        raise ValueError("use either save_model_path or load_model_path, not both")
     parameters = parameters or BaselineParameters()
     run_manifest_path = run_manifest_path or output_path.with_suffix(".manifest.json")
     _assert_completed_manifest_is_absent(run_manifest_path)
@@ -250,12 +196,27 @@ def run_rankings_batch(
     else:
         user_ids = sorted(set(user_ids))
 
-    ranker = create_baseline(model_id, parameters)
     began = time.perf_counter()
-    ranker.fit(None, cutoff_timestamp, snapshot_id, matrix=matrix)
+    if load_model_path is not None:
+        ranker = load_baseline(load_model_path, matrix)
+        if ranker.model_id != model_id:
+            raise ValueError("loaded model does not match --model")
+        if ranker.init_parameters() != create_baseline(model_id, parameters).init_parameters():
+            raise ValueError("loaded model parameters do not match the requested parameters")
+        if ranker.snapshot_id != snapshot_id:
+            raise ValueError("loaded model belongs to a different snapshot")
+    else:
+        ranker = create_baseline(model_id, parameters)
+        ranker.fit(None, cutoff_timestamp, snapshot_id, matrix=matrix)
     fit_ms = (time.perf_counter() - began) * 1000.0
+    model_file: dict[str, Any] | None = None
+    if save_model_path is not None:
+        ranker.save(save_model_path)
+        model_file = {"path": str(save_model_path), "sha256": _sha256_file(save_model_path)}
+    elif load_model_path is not None:
+        model_file = {"path": str(load_model_path), "sha256": _sha256_file(load_model_path)}
     began = time.perf_counter()
-    rows = _score_all(ranker, user_ids, k, workers)
+    rows = score_users(ranker, user_ids, k, workers=workers)
     scoring_ms = (time.perf_counter() - began) * 1000.0
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -306,6 +267,8 @@ def run_rankings_batch(
         "fallback_counts": dict(Counter(row["fallback_reason"] or "none" for row in rows)),
         "timing_ms": {"matrix": matrix_ms, "fit": fit_ms, "scoring": scoring_ms},
         "workers": workers,
+        "model_file": model_file,
+        "model_source": "loaded" if load_model_path is not None else "fitted",
         "output_path": str(output_path),
         "output_sha256": _sha256_file(output_path),
         "status": "complete",
@@ -347,6 +310,8 @@ def main() -> None:
     parser.add_argument("--tol", type=float, default=1e-12)
     parser.add_argument("--ppr-batch-size", type=_positive_integer, default=64)
     parser.add_argument("--seed", type=int)
+    parser.add_argument("--save-model", type=Path, help="write the fitted model to this .npz file")
+    parser.add_argument("--load-model", type=Path, help="reuse a saved model instead of fitting")
     args = parser.parse_args()
     run_manifest = run_rankings_batch(
         args.snapshot_manifest,
@@ -371,6 +336,8 @@ def main() -> None:
         ),
         k=args.k,
         workers=args.workers,
+        save_model_path=args.save_model,
+        load_model_path=args.load_model,
     )
     print(
         json.dumps(

@@ -149,3 +149,29 @@ def test_baselines_fit_and_rank_a_large_snapshot_quickly() -> None:
             ranker.recommend(user_id, 20)
 
     assert time.perf_counter() - began < 60.0
+
+
+@pytest.mark.parametrize("factory", RANKER_FACTORIES)
+def test_saved_models_reload_with_identical_rankings(factory, tmp_path) -> None:
+    from trustrec.recommenders.registry import load_baseline
+
+    rows = _rows()
+    ranker = factory().fit(rows, 90, snapshot_id="s")
+    path = tmp_path / "model.npz"
+    metadata = ranker.save(path)
+    reloaded = load_baseline(path, build_interaction_matrix(list(reversed(rows)), 90))
+
+    assert reloaded.model_hash == ranker.model_hash == metadata["model_hash"]
+    for user_id in sorted({row["user_id"] for row in rows})[:15]:
+        assert reloaded.recommend(user_id, 10) == ranker.recommend(user_id, 10)
+
+
+def test_loading_a_model_on_other_data_is_rejected(tmp_path) -> None:
+    from trustrec.recommenders.registry import load_baseline
+
+    ranker = BPRMFRanker(epochs=2, embedding_dimensions=4).fit(_rows(), 90)
+    path = tmp_path / "bpr.npz"
+    ranker.save(path)
+
+    with pytest.raises(ValueError, match="different data"):
+        load_baseline(path, build_interaction_matrix(_rows(seed=12), 90))

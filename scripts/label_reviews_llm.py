@@ -114,6 +114,7 @@ def run_llm_labeling(
     rows_per_part: int = 50_000,
     sync: Callable[[], Any] | None = None,
     sync_every_s: float = 600.0,
+    max_consecutive_failures: int = 20,
 ) -> dict[str, Any]:
     """Label uncached reviews and append one JSON line per review to the cache.
 
@@ -149,6 +150,7 @@ def run_llm_labeling(
         runs_path = cache_path.with_suffix(".runs.jsonl")
     last_sync = time.monotonic()
     sync_results: list[Any] = []
+    consecutive_failures = 0
 
     def work(batch: list[dict[str, Any]]) -> tuple[list[Any], dict[str, Any]]:
         return label_batch(client, batch, max_chars)
@@ -213,7 +215,11 @@ def run_llm_labeling(
                 except RuntimeError as error:
                     usage.failed_requests += 1
                     usage.errors[str(error)[:80]] = usage.errors.get(str(error)[:80], 0) + 1
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_consecutive_failures:
+                        stop, stop_reason = True, "too_many_consecutive_failures"
                     continue
+                consecutive_failures = 0
                 usage.add(request_usage, len(batch))
                 write(results, request_id)
                 if min_balance is not None and usage.requests % balance_every == 0:

@@ -101,3 +101,72 @@ def test_label_corpus_refuses_to_replace_a_completed_manifest(tmp_path: Path) ->
 
     with pytest.raises(FileExistsError, match="completed"):
         label_corpus(manifest, cutoff_name="t0", output_path=output)
+
+
+def test_llm_labeling_resumes_and_feeds_the_evidence_pipeline(tmp_path: Path) -> None:
+    from scripts.label_reviews_llm import run_llm_labeling
+
+    from trustrec.nlp.llm_labeler import ChatClient
+
+    manifest = _write_snapshot(tmp_path)
+    data = json.loads(manifest.read_text())
+    data["cutoffs"]["t1"] = CUTOFF
+    data["artifact_paths"]["fit_interactions"] = "train.parquet"
+    manifest.write_text(json.dumps(data))
+    calls = []
+
+    def post(*args, **kwargs):
+        reviews = json.loads(kwargs["json"]["messages"][1]["content"])
+        calls.append(len(reviews))
+        answer = {
+            "reviews": [
+                {
+                    "id": review["id"],
+                    "out_of_scope": False,
+                    "needs_review": False,
+                    "labels": [
+                        {"aspect": "story", "polarity": "positive", "evidence": review["text"][:9]}
+                    ],
+                }
+                for review in reviews
+            ]
+        }
+
+        class Response:
+            status_code = 200
+
+            def json(self):
+                return {"choices": [{"message": {"content": json.dumps(answer)}}], "usage": {}}
+
+        return Response()
+
+    client = ChatClient(api_key="k", model_id="fake", post=post)
+    cache = tmp_path / "cache.jsonl"
+    first = run_llm_labeling(
+        manifest,
+        cache_path=cache,
+        client=client,
+        batch_size=5,
+        workers=2,
+        max_reviews=10,
+        min_balance=None,
+    )
+    second = run_llm_labeling(
+        manifest, cache_path=cache, client=client, batch_size=5, workers=2, min_balance=None
+    )
+
+    assert first["status"] == "partial"
+    assert second["status"] == "complete"
+    assert sum(calls) == second["scope_reviews"]
+    output = tmp_path / "llm_evidence.jsonl"
+    run = label_corpus(
+        manifest,
+        cutoff_name="t0",
+        output_path=output,
+        labeler="llm-cache",
+        label_cache_path=cache,
+        llm_model_id="fake",
+    )
+    rows = [json.loads(line) for line in output.read_text().splitlines()]
+    assert run["label_status"] == "llm_silver"
+    assert rows and all(row["aspect"] == "story" for row in rows)

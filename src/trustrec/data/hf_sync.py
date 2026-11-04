@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json
 import os
@@ -34,7 +35,8 @@ class HFSync:
 
     The repository must be private unless ``allow_public`` is set, because the
     files hold review excerpts. Each push is one commit with only the files whose
-    SHA-256 changed since the last push.
+    SHA-256 changed since the last push. ``patterns`` selects the file names to
+    sync, directly under ``local_dir``.
     """
 
     repo_id: str
@@ -42,7 +44,15 @@ class HFSync:
     prefix: str
     token_env: str = "HF_KEY"
     allow_public: bool = False
+    patterns: tuple[str, ...] = ("*.jsonl",)
     api: Any = None
+
+    def _local_files(self) -> list[Path]:
+        names = {path for pattern in self.patterns for path in self.local_dir.glob(pattern)}
+        return sorted(path for path in names if path.is_file() and path.name != STATE_FILE)
+
+    def _matches(self, name: str) -> bool:
+        return any(fnmatch.fnmatchcase(name, pattern) for pattern in self.patterns)
 
     def _api(self) -> Any:
         if self.api is None:
@@ -72,7 +82,7 @@ class HFSync:
         self.check_visibility()
         state = self._state()
         changed: dict[str, str] = {}
-        for path in sorted(self.local_dir.glob("*.jsonl")):
+        for path in self._local_files():
             digest = _sha256(path)
             if state.get(path.name) != digest:
                 changed[path.name] = digest
@@ -104,7 +114,9 @@ class HFSync:
         remote = [
             name
             for name in api.list_repo_files(self.repo_id, repo_type="dataset")
-            if name.startswith(f"{self.prefix}/") and name.endswith(".jsonl")
+            if name.startswith(f"{self.prefix}/")
+            and "/" not in name[len(self.prefix) + 1 :]
+            and self._matches(Path(name).name)
         ]
         downloaded = []
         state = self._state()

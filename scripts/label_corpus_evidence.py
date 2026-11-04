@@ -23,7 +23,20 @@ from trustrec.nlp.corpus import (
     label_reviews,
 )
 from trustrec.nlp.dictionary import DictionaryBaseline
-from trustrec.nlp.llm_labeler import PROMPT_VERSION, CachedLLMLabeler, load_cache, prompt_hash
+from trustrec.nlp.llm_curation import (
+    MANIFEST_FILE,
+    is_curated,
+    load_curated,
+    read_curated_manifest,
+    sha256_file,
+)
+from trustrec.nlp.llm_labeler import (
+    PROMPT_VERSION,
+    CachedLLMLabeler,
+    cache_files,
+    load_cache,
+    prompt_hash,
+)
 from trustrec.recommenders.contracts import stable_model_hash, timestamp_value
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -158,15 +171,33 @@ def label_corpus(
     if labeler not in LABELERS:
         raise ValueError(f"unsupported labeler: {labeler}")
     if labeler == "llm-cache":
-        if label_cache_path is None or not llm_model_id:
-            raise ValueError("llm-cache needs label_cache_path and llm_model_id")
-        records = load_cache(label_cache_path, llm_model_id, llm_reasoning_effort)
-        label_source = f"{llm_model_id}:{PROMPT_VERSION}:{llm_reasoning_effort}"
+        if label_cache_path is None:
+            raise ValueError("llm-cache needs label_cache_path")
+        if is_curated(label_cache_path):
+            curated = read_curated_manifest(label_cache_path)
+            if llm_model_id and llm_model_id != curated["model_id"]:
+                raise ValueError(
+                    f"curated labels are from {curated['model_id']}, not {llm_model_id}"
+                )
+            llm_model_id = curated["model_id"]
+            llm_reasoning_effort = curated["reasoning_effort"]
+            records = load_curated(label_cache_path)
+            cache_sha256 = sha256_file(label_cache_path / MANIFEST_FILE)
+            cleaning = f":{curated['cleaning_version']}"
+        else:
+            if not llm_model_id:
+                raise ValueError("a raw llm-cache needs llm_model_id")
+            records = load_cache(label_cache_path, llm_model_id, llm_reasoning_effort)
+            cache_sha256 = stable_model_hash(
+                {part.name: sha256_file(part) for part in cache_files(label_cache_path)}
+            )
+            cleaning = ""
+        label_source = f"{llm_model_id}:{PROMPT_VERSION}:{llm_reasoning_effort}{cleaning}"
         labeler_hash = stable_model_hash(
             {
                 "label_source": label_source,
                 "prompt_sha256": prompt_hash(),
-                "cache_sha256": _sha256_file(label_cache_path),
+                "cache_sha256": cache_sha256,
             }
         )
         _LABELER_STATE.update(labeler=CachedLLMLabeler(records), label_source=label_source)
@@ -281,12 +312,21 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--labeler", choices=LABELERS, default="dictionary")
-    parser.add_argument("--label-cache", type=Path, help="LLM label cache for --labeler llm-cache")
-    parser.add_argument("--llm-model", default=os.environ.get("MODEL"))
+    parser.add_argument(
+        "--label-cache",
+        type=Path,
+        help="raw LLM cache or curated label folder for --labeler llm-cache",
+    )
+    parser.add_argument(
+        "--llm-model", help="model of a raw cache; defaults to MODEL, read from a curated folder"
+    )
     parser.add_argument("--llm-reasoning-effort", default="none")
     parser.add_argument("--workers", type=_positive_integer, default=1)
     parser.add_argument("--batch-size", type=_positive_integer, default=20_000)
     args = parser.parse_args()
+    llm_model = args.llm_model
+    if llm_model is None and not (args.label_cache and is_curated(args.label_cache)):
+        llm_model = os.environ.get("MODEL")
     run_manifest = label_corpus(
         args.snapshot_manifest,
         cutoff_name=args.cutoff,
@@ -294,7 +334,7 @@ def main() -> None:
         run_manifest_path=args.manifest,
         labeler=args.labeler,
         label_cache_path=args.label_cache,
-        llm_model_id=args.llm_model,
+        llm_model_id=llm_model,
         llm_reasoning_effort=args.llm_reasoning_effort,
         workers=args.workers,
         batch_size=args.batch_size,

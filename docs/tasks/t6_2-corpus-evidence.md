@@ -88,3 +88,28 @@ Ways to reduce cost:
 - Use larger batches.
 
 Each of these changes the prompt or the sample, so it needs a new prompt version and a development-pilot check.
+
+## LLM labels for the full corpus (2026-11-04)
+
+`gpt-6-luna` labeled all 1,545,387 t1 reviews with prompt
+`t6.2-llm-batch-v1`. The logged runs took 37 hours and 69,897 requests. The
+raw cache had 171 failed attempts; every one was retried successfully.
+
+`scripts/curate_llm_labels.py` turned the raw cache into the tables in the
+[LLM label dataset spec](../specs/llm-label-dataset.md) and uploaded them to
+`curated/gpt-6-luna/` in the private dataset `33bit/trustrec`.
+
+| Count | Value |
+| --- | --- |
+| Reviews | 1,545,387 (coverage 1.0) |
+| `labeled` / `no_aspect` / `out_of_scope` / `empty_text` | 998,616 / 404,085 / 142,589 / 97 |
+| `needs_review` | 436,244 |
+| Labels after cleaning | 3,490,130 (from 3,491,568) |
+| Overlaps merged / mixed spans set to neutral / spans trimmed | 1,366 / 72 / 11 |
+| Text hash or offset mismatches | 0 |
+
+The curated folder feeds `label_corpus_evidence.py --labeler llm-cache`
+directly. The t1 run wrote 3,490,130 evidence rows in 2 minutes with one
+worker, and `build_evidence_profiles.py` built the t1 profiles from them. Use
+one or two workers: each forked worker copies the 3 GB label table, and four
+workers ran out of memory on a 15 GB machine.

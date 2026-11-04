@@ -41,8 +41,14 @@ The LLM label caches are mirrored to the private dataset `33bit/trustrec`:
 
 | Prefix | Content |
 | --- | --- |
-| `llm/deepseek-flash/` | 18,537 DeepSeek labels (single file) |
-| `llm/gpt-6-luna/` | `part-NNNNN.jsonl` shards from the gpt-6-luna run |
+| `curated/gpt-6-luna/` | Clean Parquet tables for all 1,545,387 t1 reviews; use these |
+| `curated/deepseek-flash/` | Clean Parquet tables for the 18,537 DeepSeek reviews |
+| `llm/deepseek-flash/` | Raw DeepSeek cache (single file) |
+| `llm/gpt-6-luna/` | Raw `part-NNNNN.jsonl` shards from the gpt-6-luna run |
+
+The [LLM label dataset spec](../specs/llm-label-dataset.md) defines the
+curated tables. To restore them without the raw cache, download the
+`curated/<model>/` folder into `artifacts/curated/<model>/`.
 
 Set `HF_KEY` (a write token) and the provider key in the environment
 settings, install `huggingface_hub`, and rerun the same command. The script

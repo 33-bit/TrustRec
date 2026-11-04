@@ -212,3 +212,77 @@ def test_llm_labeling_cools_down_and_retries_failed_batches(tmp_path: Path, monk
 
     assert run["status"] == "complete"
     assert run["this_run"]["usage"]["failed_requests"] == 4
+
+
+def test_curated_llm_labels_feed_the_evidence_pipeline(tmp_path: Path) -> None:
+    from scripts.curate_llm_labels import curate_llm_labels
+    from scripts.label_reviews_llm import run_llm_labeling
+
+    from trustrec.nlp.llm_labeler import ChatClient
+
+    manifest = _write_snapshot(tmp_path)
+    data = json.loads(manifest.read_text())
+    data["cutoffs"]["t1"] = CUTOFF
+    data["artifact_paths"]["fit_interactions"] = "train.parquet"
+    manifest.write_text(json.dumps(data))
+
+    def post(*args, **kwargs):
+        reviews = json.loads(kwargs["json"]["messages"][1]["content"])
+        answer = {
+            "reviews": [
+                {
+                    "id": review["id"],
+                    "out_of_scope": False,
+                    "needs_review": False,
+                    "labels": [
+                        {"aspect": "story", "polarity": "positive", "evidence": review["text"][:9]},
+                        {"aspect": "story", "polarity": "positive", "evidence": review["text"][:4]},
+                    ],
+                }
+                for review in reviews
+            ]
+        }
+
+        class Response:
+            status_code = 200
+
+            def json(self):
+                return {"choices": [{"message": {"content": json.dumps(answer)}}], "usage": {}}
+
+        return Response()
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    client = ChatClient(api_key="k", model_id="fake", post=post, reasoning_effort=None)
+    run_llm_labeling(manifest, cache_path=cache, client=client, batch_size=5, min_balance=None)
+    raw_run = label_corpus(
+        manifest,
+        cutoff_name="t0",
+        output_path=tmp_path / "raw.jsonl",
+        labeler="llm-cache",
+        label_cache_path=cache,
+        llm_model_id="fake",
+        llm_reasoning_effort=None,
+    )
+    curated = curate_llm_labels(
+        manifest,
+        cache_path=cache,
+        model_id="fake",
+        reasoning_effort=None,
+        output_dir=tmp_path / "curated",
+    )
+    curated_run = label_corpus(
+        manifest,
+        cutoff_name="t0",
+        output_path=tmp_path / "curated.jsonl",
+        labeler="llm-cache",
+        label_cache_path=tmp_path / "curated",
+    )
+
+    assert curated["status"] == "complete"
+    assert curated["counts"]["labels"] == curated["scope_reviews"]
+    assert curated["raw_cache"]["label_actions"] == {"merged_overlap": curated["scope_reviews"]}
+    assert raw_run["summary"]["evidence_rows"] == 2 * curated_run["summary"]["evidence_rows"]
+    assert curated_run["label_source"].endswith(":llm-curation-v1")
+    rows = [json.loads(line) for line in (tmp_path / "curated.jsonl").read_text().splitlines()]
+    assert {row["evidence"] for row in rows} == {"Fun gamep", "Graphics", "Not worth", "The story"}

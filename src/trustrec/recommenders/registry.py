@@ -13,9 +13,15 @@ from .base import METADATA_KEY, MatrixRanker
 from .bpr_mf import BPRMFRanker
 from .item_knn import ItemKNNRanker
 from .matrix import InteractionMatrix
-from .popularity import PopularityRanker
+from .popularity import PopularityRanker, RecentPopularityRanker
 
-BASELINE_MODEL_IDS = ("b0_most_popular", "b1_item_knn", "b2_bpr_mf", "b3_ppr")
+BASELINE_MODEL_IDS = (
+    "b0_most_popular",
+    "b1_item_knn",
+    "b2_bpr_mf",
+    "b3_ppr",
+    "b5_recent_popularity",
+)
 DEFAULT_BPR_SEED = 7
 
 
@@ -35,6 +41,7 @@ class BaselineParameters:
     max_iter: int = 100
     tol: float = 1e-12
     ppr_batch_size: int = 64
+    window_days: float = 365.0
     seed: int | None = None
 
     def to_dict(self) -> dict[str, object]:
@@ -59,6 +66,12 @@ def create_baseline(model_id: str, parameters: BaselineParameters) -> MatrixRank
     seed = effective_seed(model_id, parameters.seed)
     if model_id == "b0_most_popular":
         return PopularityRanker(positive_threshold=parameters.positive_threshold, seed=seed)
+    if model_id == "b5_recent_popularity":
+        return RecentPopularityRanker(
+            window_days=parameters.window_days,
+            positive_threshold=parameters.positive_threshold,
+            seed=seed,
+        )
     if model_id == "b1_item_knn":
         return ItemKNNRanker(
             positive_threshold=parameters.positive_threshold,
@@ -93,6 +106,8 @@ def ranker_class(model_id: str) -> type[MatrixRanker]:
         return PopularityRanker
     if model_id == "b1_item_knn":
         return ItemKNNRanker
+    if model_id == "b5_recent_popularity":
+        return RecentPopularityRanker
     if model_id == "b2_bpr_mf":
         return BPRMFRanker
     if model_id == "b3_ppr":

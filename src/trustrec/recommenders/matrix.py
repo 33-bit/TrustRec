@@ -23,6 +23,7 @@ from .contracts import (
 
 MATRIX_SCHEMA_VERSION = "interaction-matrix-v1"
 _SEPARATOR = "\x1f"
+MS_PER_DAY = 86_400_000.0
 
 
 def rating_value(value: Any) -> float | None:
@@ -82,6 +83,12 @@ class InteractionMatrix:
     catalog_hash: str
     user_index: dict[str, int] = field(repr=False)
     item_index: dict[str, int] = field(repr=False)
+    positive_event_items: np.ndarray = field(
+        repr=False, default_factory=lambda: np.empty(0, dtype=np.int64)
+    )
+    positive_event_timestamps: np.ndarray = field(
+        repr=False, default_factory=lambda: np.empty(0, dtype=np.float64)
+    )
 
     @property
     def n_users(self) -> int:
@@ -97,6 +104,15 @@ class InteractionMatrix:
             return np.empty(0, dtype=np.int64)
         start, stop = values.indptr[position], values.indptr[position + 1]
         return values.indices[start:stop].astype(np.int64, copy=False)
+
+    def recent_popularity(self, window_days: float) -> np.ndarray:
+        """Count positive first events per item in the last ``window_days`` before the cutoff."""
+
+        if not math.isfinite(float(window_days)) or window_days <= 0:
+            raise ValueError("window_days must be finite and positive")
+        start = timestamp_value(self.cutoff_timestamp) - float(window_days) * MS_PER_DAY
+        recent = self.positive_event_items[self.positive_event_timestamps >= start]
+        return np.bincount(recent, minlength=self.n_items).astype(np.int64)
 
     def history_indices(self, user_id: str) -> np.ndarray:
         """Return sorted item indices the user interacted with before the cutoff."""
@@ -139,12 +155,13 @@ class InteractionMatrix:
 def _pairs_from_rows(
     interactions: Iterable[Mapping[str, Any]] | Any,
     cutoff_timestamp: Timestamp,
-) -> tuple[list[str], list[str], list[float | None]]:
+) -> tuple[list[str], list[str], list[float | None], list[float]]:
     rows = first_interactions_before_cutoff(interactions, cutoff_timestamp)
     return (
         [row["user_id"] for row in rows],
         [row["item_id"] for row in rows],
         [rating_value(row.get("rating")) for row in rows],
+        [timestamp_value(row["timestamp"]) for row in rows],
     )
 
 
@@ -206,7 +223,7 @@ def _canonical_row(row: Mapping[str, Any]) -> str:
 
 def _pairs_from_frame(
     frame: pd.DataFrame, cutoff_timestamp: Timestamp
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     users = _require_id_column(frame, "user_id")
     items = _require_id_column(frame, "item_id")
     timestamps = _timestamp_column(frame)
@@ -236,7 +253,12 @@ def _pairs_from_frame(
         ["timestamp", "review_id", "canonical"], kind="mergesort"
     ).drop_duplicates(["user_id", "item_id"], keep="first")
     ratings = _rating_column(frame.iloc[work["position"].to_numpy()])
-    return work["user_id"].to_numpy(), work["item_id"].to_numpy(), ratings
+    return (
+        work["user_id"].to_numpy(),
+        work["item_id"].to_numpy(),
+        ratings,
+        work["timestamp"].to_numpy(dtype=np.float64),
+    )
 
 
 def build_interaction_matrix(
@@ -257,14 +279,19 @@ def build_interaction_matrix(
     if isinstance(interactions, pa.Table):
         interactions = interactions.to_pandas()
     if isinstance(interactions, pd.DataFrame):
-        user_values, item_values, ratings = _pairs_from_frame(interactions, cutoff_timestamp)
+        user_values, item_values, ratings, timestamps = _pairs_from_frame(
+            interactions, cutoff_timestamp
+        )
     else:
-        user_list, item_list, rating_list = _pairs_from_rows(interactions, cutoff_timestamp)
+        user_list, item_list, rating_list, time_list = _pairs_from_rows(
+            interactions, cutoff_timestamp
+        )
         user_values = np.array(user_list, dtype=object)
         item_values = np.array(item_list, dtype=object)
         ratings = np.array(
             [np.nan if value is None else value for value in rating_list], dtype=np.float64
         )
+        timestamps = np.array(time_list, dtype=np.float64)
 
     user_codes, user_uniques = pd.factorize(pd.Series(user_values, dtype=object), sort=True)
     item_codes, item_uniques = pd.factorize(pd.Series(item_values, dtype=object), sort=True)
@@ -274,6 +301,7 @@ def build_interaction_matrix(
     user_codes = user_codes[order].astype(np.int64)
     item_codes = item_codes[order].astype(np.int64)
     ratings = ratings[order]
+    timestamps = timestamps[order]
     with np.errstate(invalid="ignore"):
         positive_mask = ratings >= float(positive_threshold)
     shape = (len(user_ids), len(item_ids))
@@ -310,6 +338,8 @@ def build_interaction_matrix(
         catalog_hash=catalog_fingerprint(item_ids),
         user_index={user_id: index for index, user_id in enumerate(user_ids)},
         item_index={item_id: index for index, item_id in enumerate(item_ids)},
+        positive_event_items=item_codes[positive_mask],
+        positive_event_timestamps=timestamps[positive_mask],
     )
 
 

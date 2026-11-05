@@ -375,3 +375,55 @@ Findings:
   correction for the other comparisons on the same test set. T0's gate showed
   no aspect effect at all. Report the aspect contribution as small and
   uncertain, not as a confirmed gain.
+
+### Aspect robustness checks (update, 2026-11-05)
+
+More BPR seeds would not test anything: the selected H0 has MF weight 0, so
+BPR does not change its rankings. The graph, recency, and aspect components
+have no random state. Three other checks ran instead, with nothing tuned:
+
+1. the same H0 configurations on `t0` validation;
+2. two more no-aspect rules: move the aspect weight to recency (graph 0.2,
+   recency 0.8) or to graph (graph 0.4, recency 0.6);
+3. the selected H0 with rule-based dictionary evidence
+   (`artifacts/evidence/<cutoff>_dictionary.jsonl`) instead of LLM evidence.
+
+Reference: H0 without aspect, proportional rule (graph 0.25, recency 0.75).
+Runs `t6-5-video-games-t0-h0-aspect-robustness` (metrics SHA-256
+`490487c237ff66ae250ab7166b7d8d8e9aa5f74a2e849c5901ab33fad4d6e2fe`) and
+`t6-5-video-games-t1-h0-aspect-robustness` (metrics SHA-256
+`d3e1582070a1e2731942e3522c562d80f59b1cfef785e3bdb0623f3ab65457c1`).
+
+| NDCG@10 difference from H0 without aspect | `t0` | `t1` |
+| --- | --- | --- |
+| H0, LLM evidence | +0.00021 [+0.00011, +0.00031] | +0.00011 [+0.00001, +0.00022] |
+| H0, dictionary evidence | +0.00019 [+0.00010, +0.00029] | +0.00011 [+0.00002, +0.00021] |
+| No aspect, weight to recency | +0.00006 [-0.00002, +0.00014] | -0.00016 [-0.00024, -0.00008] |
+| No aspect, weight to graph | -0.00039 [-0.00052, -0.00025] | +0.00008 [-0.00010, +0.00026] |
+| B5 | -0.00003 [-0.00021, +0.00014] | -0.00058 [-0.00072, -0.00045] |
+
+Paired user bootstrap of H0 (LLM evidence) minus "no aspect, weight to
+graph", computed from the per-user rows with 2,000 samples and seed 7:
+
+| Metric | `t0` | `t1` |
+| --- | --- | --- |
+| NDCG@10 | +0.00060 [+0.00045, +0.00074] | +0.00003 [-0.00014, +0.00020] |
+| Recall@10 | +0.00164 [+0.00125, +0.00203] | +0.00049 [+0.00015, +0.00082] |
+
+Findings:
+
+- The aspect term beats the proportional and recency-heavy no-aspect variants
+  on both cutoffs, by about +0.0001 to +0.0003 NDCG@10.
+- `t0` is not an independent replication. The H0 weights were selected on
+  `t0` as the best of 9 trials, so its `t0` score is biased upward. The
+  no-aspect variants were not in that grid.
+- On `t1` NDCG@10, giving the aspect weight to graph matches H0 (+0.00003,
+  interval includes 0). H0 keeps a Recall@10 edge (+0.00049). So on the test
+  set, part of what looks like an aspect effect is "less recency, more graph".
+- Dictionary evidence gives the same gain as LLM evidence on both cutoffs. The
+  LLM labels add nothing measurable over rule-based labels here.
+- Conclusion: aspect evidence has a small, consistent effect on Recall@10.
+  Its NDCG@10 effect on test depends on the ablation rule. Report it as "no
+  better than reweighting graph for NDCG@10; a small Recall@10 gain", not as
+  a confirmed improvement. The label source does not matter at this effect
+  size.

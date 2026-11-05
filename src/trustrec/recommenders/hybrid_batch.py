@@ -159,26 +159,39 @@ class HybridConfig:
     kappa: float = 5.0
     g_max: float = 0.5
     rho: float = 0.5
+    recency_weight: float = 0.0
+    tau: float = 0.0
 
     def __post_init__(self) -> None:
         if self.model_id not in HYBRID_MODEL_IDS:
             raise ValueError(f"unsupported hybrid model_id: {self.model_id}")
         if self.model_id == "h0_fixed_hybrid":
-            weights = (self.mf_weight, self.graph_weight, self.aspect_weight)
+            weights = (self.mf_weight, self.graph_weight, self.recency_weight, self.aspect_weight)
             if any(weight < 0 for weight in weights) or abs(sum(weights) - 1.0) > 1e-9:
                 raise ValueError("H0 weights must be non-negative and sum to 1")
         else:
-            if self.kappa <= 0 or not 0.0 <= self.g_max <= 1.0 or not 0.0 <= self.rho <= 1.0:
+            bounded = (self.g_max, self.rho, self.tau)
+            if self.kappa <= 0 or not all(0.0 <= value <= 1.0 for value in bounded):
                 raise ValueError("invalid T0 gate parameters")
 
+    @property
+    def uses_recency(self) -> bool:
+        return (self.recency_weight if self.model_id == "h0_fixed_hybrid" else self.tau) > 0
+
     def parameters(self) -> dict[str, float]:
+        """Return the tuned parameters; the ADR-0017 recency term only when it is used."""
+
         if self.model_id == "h0_fixed_hybrid":
-            return {
+            values = {
                 "mf_weight": self.mf_weight,
                 "graph_weight": self.graph_weight,
                 "aspect_weight": self.aspect_weight,
             }
-        return {"kappa": self.kappa, "g_max": self.g_max, "rho": self.rho}
+            return (
+                {**values, "recency_weight": self.recency_weight} if self.uses_recency else values
+            )
+        values = {"kappa": self.kappa, "g_max": self.g_max, "rho": self.rho}
+        return {**values, "tau": self.tau} if self.uses_recency else values
 
 
 @dataclass
@@ -188,6 +201,7 @@ class UserComponents:
     graph: np.ndarray
     aspect: np.ndarray
     support: np.ndarray
+    recency: np.ndarray
     history_count: int
     mf_fallback: str | None
     graph_fallback: str | None
@@ -217,6 +231,7 @@ class HybridBatchScorer:
         normalization: str = "percentile",
         cold_start: str = "blend",
         cold_scores: np.ndarray | None = None,
+        recency_scores: np.ndarray | None = None,
     ) -> None:
         for ranker in (mf_ranker, graph_ranker):
             if ranker.matrix.fingerprint != matrix.fingerprint:
@@ -225,8 +240,9 @@ class HybridBatchScorer:
             raise ValueError(f"unsupported normalization: {normalization}")
         if cold_start not in COLD_START_POLICIES:
             raise ValueError(f"unsupported cold_start policy: {cold_start}")
-        if cold_scores is not None and cold_scores.shape != (matrix.n_items,):
-            raise ValueError("cold_scores must have one score per catalog item")
+        for name, values in (("cold_scores", cold_scores), ("recency_scores", recency_scores)):
+            if values is not None and values.shape != (matrix.n_items,):
+                raise ValueError(f"{name} must have one score per catalog item")
         self.matrix = matrix
         self.mf_ranker = mf_ranker
         self.graph_ranker = graph_ranker
@@ -236,6 +252,7 @@ class HybridBatchScorer:
         self.cold_scores = (
             matrix.popularity.astype(np.float64) if cold_scores is None else cold_scores
         )
+        self.recency_scores = recency_scores
         self._normalize = NORMALIZERS[normalization]
 
     def prepare(self, user_ids: Sequence[str]) -> None:
@@ -266,12 +283,18 @@ class HybridBatchScorer:
         mf, mf_fallback = self._component(self.mf_ranker, user_id, positives, candidates)
         graph, graph_fallback = self._component(self.graph_ranker, user_id, positives, candidates)
         aspect, support = self.aspect_model.scores(matrix.user_index.get(user_id))
+        recency = (
+            np.zeros(candidates.size)
+            if self.recency_scores is None
+            else self._normalize(self.recency_scores[candidates])
+        )
         return UserComponents(
             candidates=candidates,
             mf=self._normalize(mf),
             graph=self._normalize(graph),
             aspect=self._normalize(aspect[candidates]),
             support=support[candidates],
+            recency=recency,
             history_count=int(matrix.history_indices(user_id).size),
             mf_fallback=mf_fallback,
             graph_fallback=graph_fallback,
@@ -285,18 +308,23 @@ class HybridBatchScorer:
             total = (
                 config.mf_weight * parts.mf
                 + config.graph_weight * parts.graph
+                + config.recency_weight * parts.recency
                 + config.aspect_weight * parts.aspect
             )
             return total, np.zeros(parts.candidates.size)
         history_factor = config.kappa / (config.kappa + parts.history_count)
         gate = config.g_max * history_factor * parts.support
-        base = config.rho * parts.mf + (1.0 - config.rho) * parts.graph
+        personal = config.rho * parts.mf + (1.0 - config.rho) * parts.graph
+        base = config.tau * parts.recency + (1.0 - config.tau) * personal
         return (1.0 - gate) * base + gate * parts.aspect, gate
 
     def recommend_many_configs(
         self, user_id: str, configs: Sequence[HybridConfig], k: int
     ) -> list[tuple[TopKRecommendation, float]]:
         """Return one top-K result and mean gate per configuration for one user."""
+
+        if self.recency_scores is None and any(config.uses_recency for config in configs):
+            raise ValueError("a recency weight needs recency_scores")
 
         if self.cold_start == "fallback" and self.matrix.positive_indices(user_id).size == 0:
             return self._cold_fallback(user_id, len(configs), k)

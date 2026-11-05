@@ -271,3 +271,72 @@ Findings:
   None of them sees recency. A fair test of aspect evidence needs a recency
   term in the base score, which changes ADR-0009 and the B1–B3 definitions and
   needs an owner decision ([ADR-0017](../adr/0017-hybrid-cold-start-and-normalization.md) is the first proposal).
+
+## H0 and T0 under ADR-0017 (update, 2026-11-05)
+
+[ADR-0017](../adr/0017-hybrid-cold-start-and-normalization.md) (accepted by
+the owner) adds three changes to H0 and T0:
+
+- a recency component `R`, the B5 score with a 60-day window;
+- a B5 fallback for users without positive history;
+- min-max normalization.
+
+The evidence and components match the ADR-0009 runs.
+
+```bash
+PYTHONPATH=src python3 scripts/run_hybrid_batch.py tune --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json --evidence artifacts/evidence/t0_gpt-6-luna.jsonl --mf-model artifacts/models/b2_t0_best.npz --graph-params '{"damping": 0.85, "max_iter": 100}' --workers 4 --grid adr0017 --normalization minmax --cold-start fallback --cold-window-days 60 --recency-window-days 60 --output reports/generated/t6-5-hybrid-tuning-t0-adr0017.json
+```
+
+The `t1` run used `run_hybrids` with the same settings, the selected H0 and
+T0, and T0 with `g_max` 0 as the no-aspect ablation.
+
+### Validation tuning on `t0`
+
+9 trials per model, 75,414 users; B5 (60 days) scores 0.0775. Tuning report
+SHA-256: `ef6095a8092a0c7dbad4c29dd46f4ef5895bdc8aef6a90912242ede5c2923b20`.
+Scoring took 12 minutes on 4 cores.
+
+| Model | Range over 9 trials | Selected setting | NDCG@10 |
+| --- | --- | --- | --- |
+| H0 | 0.0770 to 0.0777 | MF 0, graph 0.2, recency 0.6, aspect 0.2 | 0.0777 |
+| T0 | 0.0760 to 0.0775 | `g_max` 0.1, `tau` 0.8, `rho` 0.5 | 0.0775 |
+
+Every trial is within 0.0015 of B5. Higher recency weight is better. Higher
+`g_max` is slightly worse at every `tau`.
+
+### Test on `t1`
+
+Run `t6-5-video-games-t1-adr0017`, reference B5. Metrics SHA-256:
+`3b47c037c1ff459a8dd0a48c6b9ee512e8938811eac4bc995c7edaccbd1234d0`.
+
+| Model | NDCG@10 | Difference from B5 | Recall@10 | Difference from B5 |
+| --- | --- | --- | --- | --- |
+| B5 recent popularity | 0.1064 | | 0.1557 | |
+| H0, ADR-0017 | 0.1071 | +0.0007 [+0.0005, +0.0009] | 0.1574 | +0.0016 [+0.0012, +0.0021] |
+| T0, ADR-0017 | 0.1068 | +0.0004 [+0.0003, +0.0005] | 0.1569 | +0.0012 [+0.0009, +0.0015] |
+| T0 base, no aspect (`g_max` 0) | 0.1068 | +0.0004 [+0.0003, +0.0005] | 0.1569 | +0.0012 [+0.0009, +0.0015] |
+| H0, ADR-0009 | 0.0384 | -0.0680 | 0.0575 | |
+| T0, ADR-0009 | 0.0362 | -0.0702 | 0.0506 | |
+
+| Slice | Users | B5 | H0 | T0 | T0 no aspect |
+| --- | --- | --- | --- | --- | --- |
+| no_history | 53,413 | 0.1139 | 0.1139 | 0.1139 | 0.1139 |
+| 1-2 | 5,464 | 0.0674 | 0.0733 | 0.0712 | 0.0712 |
+| 3-5 | 1,546 | 0.0459 | 0.0510 | 0.0487 | 0.0483 |
+| >5 | 1,352 | 0.0398 | 0.0414 | 0.0402 | 0.0404 |
+
+### Findings
+
+- With a recency term, both hybrids beat B5 on test. The gain is small
+  (+0.0004 to +0.0007 NDCG@10) and comes only from users with history, because
+  users without history get B5 exactly.
+- T0 equals its no-aspect ablation in total and almost exactly by slice. Its
+  mean gate on `t1` is 0.002, so the TrustRec gate adds no measurable value
+  here. The T0 gain over B5 comes from blending MF and graph scores into the
+  recency base, not from aspect evidence.
+- H0 is the best model. It keeps a 0.2 aspect weight, but it also differs
+  from the T0 base in its graph and recency weights. This run cannot say how
+  much of H0's lead comes from the aspect term. Answering that needs an H0
+  ablation with the aspect weight set to 0.
+- Validation predicted these results: on `t0`, every ADR-0017 setting was
+  within 0.0015 of B5, and the H0 winner was the best trial.

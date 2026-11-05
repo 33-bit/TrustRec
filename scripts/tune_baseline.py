@@ -83,6 +83,9 @@ DEFAULT_GRIDS: dict[str, list[dict[str, Any]]] = {
         for damping in (0.5, 0.7, 0.85)
         for max_iter in (10, 30, 100)
     ],
+    "b5_recent_popularity": [
+        {"window_days": days} for days in (30, 60, 90, 180, 365, 540, 730, 1095, 1825)
+    ],
 }
 TUNABLE_MODELS = tuple(DEFAULT_GRIDS)
 

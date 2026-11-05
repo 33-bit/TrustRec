@@ -7,6 +7,7 @@ Ranking puts candidate items in score order. The pipeline compares these models:
 - B2: BPR MF with positive items and sampled unknown negatives.
 - B3: Personalized PageRank on the positive user-item graph.
 - B4: Aspect-only score.
+- B5: Most popular from positive interactions in a tuned window before the cutoff ([ADR-0016](../adr/0016-recent-popularity-baseline.md)).
 - H0: Fixed hybrid of normalized MF, graph, and aspect scores.
 - T0: Adaptive TrustRec gate.
 
@@ -17,5 +18,7 @@ s_base = ρ M̃ + (1 - ρ) G̃
 g(u,i) = g_max × κ/(κ+n_u) × C(u,i)
 s_T0 = (1-g) s_base + g Ã
 ```
+
+[ADR-0017](../adr/0017-hybrid-cold-start-and-normalization.md) adds optional settings: min-max normalization, a recency component `R` in H0 and in `s_base = τR + (1-τ)(ρM̃ + (1-ρ)G̃)`, and a B5 fallback for users without positive history.
 
 Use identical candidate and target sets across compared models. If history, graph edges, or evidence are absent, state the fallback reason in the output.

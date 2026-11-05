@@ -19,6 +19,8 @@ from trustrec.recommenders.batch import score_users
 from trustrec.recommenders.bpr_mf import BPRMFRanker
 from trustrec.recommenders.contracts import stable_model_hash
 from trustrec.recommenders.hybrid_batch import (
+    COLD_START_POLICIES,
+    NORMALIZATIONS,
     HybridBatchScorer,
     HybridConfig,
     build_aspect_model,
@@ -52,6 +54,12 @@ except ModuleNotFoundError:  # run as ``python scripts/run_hybrid_batch.py``
 INTERACTIONS_BY_CUTOFF = {"t0": "train_interactions", "t1": "fit_interactions"}
 TARGETS_BY_CUTOFF = {"t0": "validation_targets", "t1": "test_targets"}
 K_VALUES = (5, 10, 20)
+DEFAULT_SCORER_SETTINGS: dict[str, Any] = {
+    "normalization": "percentile",
+    "cold_start": "blend",
+    "cold_window_days": None,
+    "recency_window_days": None,
+}
 DEFAULT_GRID = [
     *(
         HybridConfig("h0_fixed_hybrid", mf_weight=m, graph_weight=g, aspect_weight=a)
@@ -73,6 +81,31 @@ DEFAULT_GRID = [
         for rho in (0.2, 0.5, 0.8)
     ),
 ]
+# ADR-0017: a recency term (B5 scores) in the base; every H0 point keeps an aspect term.
+RECENCY_GRID = [
+    *(
+        HybridConfig(
+            "h0_fixed_hybrid", mf_weight=m, graph_weight=g, recency_weight=r, aspect_weight=a
+        )
+        for m, g, r, a in (
+            (0.1, 0.2, 0.6, 0.1),
+            (0.1, 0.1, 0.7, 0.1),
+            (0.2, 0.2, 0.5, 0.1),
+            (0.1, 0.3, 0.4, 0.2),
+            (0.1, 0.2, 0.5, 0.2),
+            (0.0, 0.2, 0.6, 0.2),
+            (0.1, 0.1, 0.5, 0.3),
+            (0.2, 0.2, 0.4, 0.2),
+            (0.0, 0.3, 0.5, 0.2),
+        )
+    ),
+    *(
+        HybridConfig("t0_trustrec", kappa=5.0, g_max=g_max, rho=0.5, tau=tau)
+        for g_max in (0.1, 0.25, 0.5)
+        for tau in (0.4, 0.6, 0.8)
+    ),
+]
+GRIDS = {"adr0009": DEFAULT_GRID, "adr0017": RECENCY_GRID}
 
 
 def _read_evidence(path: Path) -> Iterator[dict[str, Any]]:
@@ -94,7 +127,9 @@ def _components(
     graph_parameters: dict[str, Any],
     mf_model_path: Path | None,
     positive_threshold: float,
+    scorer_settings: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    settings = {**DEFAULT_SCORER_SETTINGS, **(scorer_settings or {})}
     manifest = _load_manifest(manifest_path)
     snapshot_id = str(manifest["snapshot_id"])
     cutoff_timestamp = manifest["cutoffs"][cutoff_name]
@@ -122,6 +157,22 @@ def _components(
     graph = PersonalizedPageRankRanker(positive_threshold=positive_threshold, **graph_parameters)
     graph.fit(None, cutoff_timestamp, snapshot_id, matrix=matrix)
     aspect_model = build_aspect_model(_read_evidence(evidence_path), matrix, cutoff_timestamp)
+    window = settings["cold_window_days"]
+    cold_scores = None if window is None else matrix.recent_popularity(window).astype(float)
+    recency_window = settings["recency_window_days"]
+    recency_scores = (
+        None if recency_window is None else matrix.recent_popularity(recency_window).astype(float)
+    )
+    scorer = HybridBatchScorer(
+        matrix,
+        mf,
+        graph,
+        aspect_model,
+        normalization=settings["normalization"],
+        cold_start=settings["cold_start"],
+        cold_scores=cold_scores,
+        recency_scores=recency_scores,
+    )
     return {
         "manifest": manifest,
         "snapshot_id": snapshot_id,
@@ -129,7 +180,8 @@ def _components(
         "interactions": interactions,
         "target_path": target_path,
         "matrix": matrix,
-        "scorer": HybridBatchScorer(matrix, mf, graph, aspect_model),
+        "scorer": scorer,
+        "scorer_settings": settings,
         "source_hashes": source_hashes,
         "component_hashes": {"mf": mf.model_hash, "graph": graph.model_hash},
         "aspect_summary": {
@@ -168,6 +220,7 @@ def tune_hybrids(
     workers: int = 1,
     bootstrap_samples: int = 200,
     seed: int = 7,
+    scorer_settings: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Score every grid point on ``t0`` and record validation metrics against popularity."""
 
@@ -180,6 +233,7 @@ def tune_hybrids(
         graph_parameters=graph_parameters or {},
         mf_model_path=mf_model_path,
         positive_threshold=positive_threshold,
+        scorer_settings=scorer_settings,
     )
     dataset = build_evaluation_cases(
         context.pop("interactions").to_pylist(),
@@ -237,8 +291,10 @@ def tune_hybrids(
         "component_model_hashes": context["component_hashes"],
         "mf_parameters": mf_parameters,
         "graph_parameters": graph_parameters,
+        "scorer_settings": context["scorer_settings"],
         "aspect_summary": context["aspect_summary"],
         "selection_metric": "ndcg@10",
+        "grid": [asdict(config) for config in grid],
         "tuning_budget": {
             model_id: sum(1 for config in grid if config.model_id == model_id)
             for model_id in sorted({config.model_id for config in grid})
@@ -266,6 +322,7 @@ def run_hybrids(
     k: int = 100,
     workers: int = 1,
     user_ids: Sequence[str] | None = None,
+    scorer_settings: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Write one JSON Lines ranking file and manifest per configuration."""
 
@@ -282,6 +339,7 @@ def run_hybrids(
         graph_parameters=graph_parameters or {},
         mf_model_path=mf_model_path,
         positive_threshold=positive_threshold,
+        scorer_settings=scorer_settings,
     )
     context.pop("interactions")
     if user_ids is None:
@@ -303,7 +361,7 @@ def run_hybrids(
                 record = {"model_id": config.model_id, **row}
                 record = {**record, **_with_lineage([record], context)[0]}
                 handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
-        configuration = {**asdict(config), "k": k}
+        configuration = {**asdict(config), "k": k, **context["scorer_settings"]}
         run_manifest = {
             "schema_version": 1,
             "task": "batch_rankings",
@@ -318,6 +376,7 @@ def run_hybrids(
             "component_model_hashes": context["component_hashes"],
             "mf_parameters": mf_parameters,
             "graph_parameters": graph_parameters,
+            "scorer_settings": context["scorer_settings"],
             "aspect_summary": context["aspect_summary"],
             "source_artifact_sha256": context["source_hashes"],
             "users": len(rows),
@@ -346,9 +405,22 @@ def main() -> None:
         mode.add_argument("--mf-model", type=Path, help="saved BPR MF model for this cutoff")
         mode.add_argument("--graph-params", type=json.loads, default={}, help="PPR JSON parameters")
         mode.add_argument("--workers", type=int, default=1)
+        mode.add_argument("--normalization", choices=NORMALIZATIONS, default="percentile")
+        mode.add_argument("--cold-start", choices=COLD_START_POLICIES, default="blend")
+        mode.add_argument(
+            "--recency-window-days",
+            type=float,
+            help="B5 window for the recency component that ADR-0017 grids use",
+        )
+        mode.add_argument(
+            "--cold-window-days",
+            type=float,
+            help="with --cold-start fallback, rank cold users by B5 with this window (else B0)",
+        )
     tune = sub.choices["tune"]
     tune.add_argument("--output", type=Path, required=True)
     tune.add_argument("--bootstrap-samples", type=int, default=200)
+    tune.add_argument("--grid", choices=tuple(GRIDS), default="adr0009")
     run = sub.choices["run"]
     run.add_argument("--cutoff", choices=tuple(INTERACTIONS_BY_CUTOFF), default="t1")
     run.add_argument("--h0", type=json.loads, help="H0 JSON weights")
@@ -363,12 +435,19 @@ def main() -> None:
         "graph_parameters": args.graph_params,
         "mf_model_path": args.mf_model,
         "workers": args.workers,
+        "scorer_settings": {
+            "normalization": args.normalization,
+            "cold_start": args.cold_start,
+            "cold_window_days": args.cold_window_days,
+            "recency_window_days": args.recency_window_days,
+        },
     }
     if args.mode == "tune":
         result = tune_hybrids(
             args.snapshot_manifest,
             output_path=args.output,
             bootstrap_samples=args.bootstrap_samples,
+            grid=GRIDS[args.grid],
             **common,
         )
         print(json.dumps({"best": result["best"]}))

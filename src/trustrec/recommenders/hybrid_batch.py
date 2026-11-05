@@ -17,6 +17,8 @@ from .contracts import Timestamp, timestamp_value
 from .matrix import InteractionMatrix, top_k_order
 
 HYBRID_MODEL_IDS = ("h0_fixed_hybrid", "t0_trustrec")
+NORMALIZATIONS = ("percentile", "minmax")
+COLD_START_POLICIES = ("blend", "fallback")
 
 
 def percentile_vector(values: np.ndarray) -> np.ndarray:
@@ -28,6 +30,24 @@ def percentile_vector(values: np.ndarray) -> np.ndarray:
         return np.full(values.size, 0.5)
     ranks = rankdata(values, method="average") - 1.0
     return ranks / max(values.size - 1, 1)
+
+
+def minmax_vector(values: np.ndarray) -> np.ndarray:
+    """Scale values to ``[0, 1]`` by the candidate minimum and maximum.
+
+    Unlike percentiles, this keeps relative gaps, so a heavy-tailed score such
+    as popularity keeps its leaders far ahead. All-equal values map to 0.5.
+    """
+
+    if values.size == 0:
+        return values.astype(np.float64)
+    low, high = float(values.min()), float(values.max())
+    if high == low:
+        return np.full(values.size, 0.5)
+    return (values.astype(np.float64) - low) / (high - low)
+
+
+NORMALIZERS = {"percentile": percentile_vector, "minmax": minmax_vector}
 
 
 @dataclass
@@ -179,6 +199,12 @@ class HybridBatchScorer:
     Each component covers the protocol candidate pool (catalog minus history).
     MF and graph components use the same popularity fallback as B2 and B3, so
     H0 and T0 differ from the baselines only through the hybrid formula.
+
+    ``normalization`` picks how each component is scaled within the candidate
+    set (``percentile`` per ADR-0009, or ``minmax``). ``cold_start`` picks what
+    users without positive history get: ``blend`` applies the hybrid formula as
+    usual; ``fallback`` returns ``cold_scores`` order (ties by popularity) with
+    no aspect term and a zero gate.
     """
 
     def __init__(
@@ -187,14 +213,30 @@ class HybridBatchScorer:
         mf_ranker: MatrixRanker,
         graph_ranker: MatrixRanker,
         aspect_model: AspectModel,
+        *,
+        normalization: str = "percentile",
+        cold_start: str = "blend",
+        cold_scores: np.ndarray | None = None,
     ) -> None:
         for ranker in (mf_ranker, graph_ranker):
             if ranker.matrix.fingerprint != matrix.fingerprint:
                 raise ValueError("component rankers must use the hybrid matrix")
+        if normalization not in NORMALIZATIONS:
+            raise ValueError(f"unsupported normalization: {normalization}")
+        if cold_start not in COLD_START_POLICIES:
+            raise ValueError(f"unsupported cold_start policy: {cold_start}")
+        if cold_scores is not None and cold_scores.shape != (matrix.n_items,):
+            raise ValueError("cold_scores must have one score per catalog item")
         self.matrix = matrix
         self.mf_ranker = mf_ranker
         self.graph_ranker = graph_ranker
         self.aspect_model = aspect_model
+        self.normalization = normalization
+        self.cold_start = cold_start
+        self.cold_scores = (
+            matrix.popularity.astype(np.float64) if cold_scores is None else cold_scores
+        )
+        self._normalize = NORMALIZERS[normalization]
 
     def prepare(self, user_ids: Sequence[str]) -> None:
         prepare = getattr(self.graph_ranker, "prepare", None)
@@ -226,9 +268,9 @@ class HybridBatchScorer:
         aspect, support = self.aspect_model.scores(matrix.user_index.get(user_id))
         return UserComponents(
             candidates=candidates,
-            mf=percentile_vector(mf),
-            graph=percentile_vector(graph),
-            aspect=percentile_vector(aspect[candidates]),
+            mf=self._normalize(mf),
+            graph=self._normalize(graph),
+            aspect=self._normalize(aspect[candidates]),
             support=support[candidates],
             history_count=int(matrix.history_indices(user_id).size),
             mf_fallback=mf_fallback,
@@ -256,6 +298,8 @@ class HybridBatchScorer:
     ) -> list[tuple[TopKRecommendation, float]]:
         """Return one top-K result and mean gate per configuration for one user."""
 
+        if self.cold_start == "fallback" and self.matrix.positive_indices(user_id).size == 0:
+            return self._cold_fallback(user_id, len(configs), k)
         parts = self.components(user_id)
         if parts.candidates.size == 0:
             empty = TopKRecommendation(user_id, (), (), 0, "", "no_candidates")
@@ -282,6 +326,26 @@ class HybridBatchScorer:
                 )
             )
         return results
+
+    def _cold_fallback(
+        self, user_id: str, n_configs: int, k: int
+    ) -> list[tuple[TopKRecommendation, float]]:
+        candidates = self.matrix.candidate_indices(user_id)
+        if candidates.size == 0:
+            empty = TopKRecommendation(user_id, (), (), 0, "", "no_candidates")
+            return [(empty, 0.0) for _ in range(n_configs)]
+        scores = self.cold_scores[candidates]
+        popularity = self.matrix.popularity[candidates].astype(np.float64)
+        order = top_k_order(scores, candidates, k, secondary=popularity)
+        recommendation = TopKRecommendation(
+            user_id=user_id,
+            item_ids=tuple(self.matrix.item_ids[int(candidates[p])] for p in order),
+            scores=tuple(float(scores[p]) for p in order),
+            candidate_count=int(candidates.size),
+            candidate_signature=self.matrix.candidate_signature(user_id),
+            fallback_reason="no_positive_history",
+        )
+        return [(recommendation, 0.0) for _ in range(n_configs)]
 
 
 # A forked worker reads the scorer from this module global.

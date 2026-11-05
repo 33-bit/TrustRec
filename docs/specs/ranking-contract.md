@@ -7,6 +7,7 @@ Ranking puts candidate items in score order. The pipeline compares these models:
 - B2: BPR MF with positive items and sampled unknown negatives.
 - B3: Personalized PageRank on the positive user-item graph.
 - B4: Aspect-only score.
+- B5: Most popular from positive interactions in a tuned window before the cutoff ([ADR-0016](../adr/0016-recent-popularity-baseline.md)).
 - H0: Fixed hybrid of normalized MF, graph, and aspect scores.
 - T0: Adaptive TrustRec gate.
 

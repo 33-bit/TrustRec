@@ -309,6 +309,7 @@ def main() -> None:
     parser.add_argument("--max-iter", type=_positive_integer, default=100)
     parser.add_argument("--tol", type=float, default=1e-12)
     parser.add_argument("--ppr-batch-size", type=_positive_integer, default=64)
+    parser.add_argument("--window-days", type=float, default=365.0, help="B5 window length")
     parser.add_argument("--seed", type=int)
     parser.add_argument("--save-model", type=Path, help="write the fitted model to this .npz file")
     parser.add_argument("--load-model", type=Path, help="reuse a saved model instead of fitting")
@@ -332,6 +333,7 @@ def main() -> None:
             max_iter=args.max_iter,
             tol=args.tol,
             ppr_batch_size=args.ppr_batch_size,
+            window_days=args.window_days,
             seed=args.seed,
         ),
         k=args.k,

@@ -122,3 +122,50 @@ def test_hybrid_config_rejects_invalid_settings() -> None:
         HybridConfig("h0_fixed_hybrid", mf_weight=0.5, graph_weight=0.5, aspect_weight=0.5)
     with pytest.raises(ValueError, match="gate"):
         HybridConfig("t0_trustrec", g_max=1.5)
+
+
+def _scorer(**settings):
+    rows, evidence = _data()
+    rows.append(
+        {"review_id": "cold", "user_id": "ucold", "item_id": "i00", "rating": 1.0, "timestamp": 5}
+    )
+    matrix = build_interaction_matrix(rows, 100)
+    mf = BPRMFRanker(embedding_dimensions=4, epochs=2, seed=3)
+    mf.fit(None, 100, "snap", matrix=matrix)
+    graph = PersonalizedPageRankRanker(max_iter=20)
+    graph.fit(None, 100, "snap", matrix=matrix)
+    aspects = build_aspect_model(evidence, matrix, 100, aspects=ASPECTS)
+    return matrix, HybridBatchScorer(matrix, mf, graph, aspects, **settings)
+
+
+def test_minmax_vector_keeps_gaps_and_handles_constants() -> None:
+    from trustrec.recommenders.hybrid_batch import minmax_vector
+
+    assert minmax_vector(np.array([0.0, 1.0, 1000.0])).tolist() == [0.0, 0.001, 1.0]
+    assert minmax_vector(np.array([4.0, 4.0])).tolist() == [0.5, 0.5]
+    assert minmax_vector(np.array([])).size == 0
+
+
+def test_cold_fallback_returns_the_baseline_order_without_aspects() -> None:
+    from trustrec.recommenders.popularity import PopularityRanker
+
+    configs = [
+        HybridConfig("h0_fixed_hybrid", mf_weight=0.2, graph_weight=0.4, aspect_weight=0.4),
+        HybridConfig("t0_trustrec", g_max=0.75),
+    ]
+    matrix, blend = _scorer()
+    _, fallback = _scorer(cold_start="fallback", normalization="minmax")
+    popularity = PopularityRanker().fit(None, 100, "snap", matrix=matrix)
+    expected = popularity.recommend("ucold", k=10).item_ids
+
+    results = fallback.recommend_many_configs("ucold", configs, 10)
+
+    assert all(rec.item_ids == expected for rec, _ in results)
+    assert all(
+        gate == 0.0 and rec.fallback_reason == "no_positive_history" for rec, gate in results
+    )
+    assert blend.recommend_many_configs("ucold", configs[:1], 10)[0][0].item_ids != expected
+    warm = next(user for user in matrix.user_ids if matrix.positive_indices(user).size)
+    assert fallback.recommend_many_configs(warm, configs, 10)[0][0].fallback_reason is None
+    with pytest.raises(ValueError, match="normalization"):
+        _scorer(normalization="zscore")

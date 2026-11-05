@@ -220,3 +220,54 @@ Open points:
 - Using no aspect term for users without history, or a score normalization
   that keeps popularity magnitude, changes ADR-0009 and needs an owner
   decision before any run.
+
+## B5 recent popularity (update, 2026-11-05)
+
+[ADR-0016](../adr/0016-recent-popularity-baseline.md) adds B5, which ranks by
+positive interactions in a window before the cutoff. It tests whether the H0
+and T0 test gain came from recency instead of aspect evidence.
+
+```bash
+PYTHONPATH=src python3 scripts/tune_baseline.py --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json --model b5_recent_popularity --workers 4 --output reports/generated/t6-5-b5-tuning-t0.json
+PYTHONPATH=src python3 scripts/run_rankings_batch.py --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json --model b5_recent_popularity --cutoff t1 --k 100 --workers 4 --window-days 60 --output artifacts/rankings/b5_t1_w60.jsonl
+```
+
+Validation tuning on `t0` (9 trials, 75,414 users, popularity 0.0378). Tuning
+report SHA-256: `d42f766719779dd9ce7d12bfbfb4b23e30a363d7e5d2087495a8cefdb899bd93`.
+
+| Window (days) | 30 | 60 | 90 | 180 | 365 | 540 | 730 | 1,095 | 1,825 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| NDCG@10 | 0.0769 | **0.0775** | 0.0773 | 0.0772 | 0.0667 | 0.0627 | 0.0570 | 0.0497 | 0.0408 |
+
+The selected window is 60 days (+0.0396 [+0.0384, +0.0410] over popularity).
+
+Test on `t1`, with B5 as the reference. Run `t6-5-video-games-t1-with-b5`,
+metrics SHA-256 `5f20a018b978b42211326da7d7d32be9f83ffa1706b24a12991a226affc02689`.
+
+| Model | NDCG@10 | Difference from B5 | Recall@10 |
+| --- | --- | --- | --- |
+| B5 recent popularity, 60 days | 0.1064 [0.1042, 0.1086] | | 0.1557 |
+| H0 fixed hybrid | 0.0384 | -0.0680 [-0.0703, -0.0657] | 0.0575 |
+| T0 TrustRec | 0.0362 | -0.0702 [-0.0725, -0.0680] | 0.0506 |
+| B3 PPR | 0.0284 | -0.0780 [-0.0803, -0.0759] | 0.0512 |
+| B0 most popular | 0.0268 | -0.0796 [-0.0818, -0.0774] | 0.0492 |
+
+| Slice | Users | B0 | B3 | B5 | H0 | T0 |
+| --- | --- | --- | --- | --- | --- | --- |
+| no_history | 53,413 | 0.0276 | 0.0276 | 0.1139 | 0.0404 | 0.0376 |
+| 1-2 | 5,464 | 0.0237 | 0.0371 | 0.0674 | 0.0284 | 0.0302 |
+| 3-5 | 1,546 | 0.0201 | 0.0294 | 0.0459 | 0.0255 | 0.0277 |
+| >5 | 1,352 | 0.0155 | 0.0215 | 0.0398 | 0.0180 | 0.0185 |
+
+Findings:
+
+- Recency dominates this data. B5 is about four times B0 on test and beats
+  every other model in every history slice, including users with more than
+  five positive interactions.
+- The H0 and T0 gain over B0 is a weak, accidental form of recency. Both stay
+  far below B5, so aspect evidence adds nothing measurable here yet.
+- Every personalized baseline (B1, B2, B3) and both hybrids fall back to
+  all-time popularity, and B3 also ranks warm users by long-run graph mass.
+  None of them sees recency. A fair test of aspect evidence needs a recency
+  term in the base score, which changes ADR-0009 and the B1–B3 definitions and
+  needs an owner decision ([ADR-0017](../adr/0017-hybrid-cold-start-and-normalization.md) is the first proposal).

@@ -113,3 +113,44 @@ def test_tune_and_run_hybrids_feed_the_evaluator(tmp_path: Path) -> None:
         bootstrap_samples=20,
     )
     assert set(result["models"]) == {"h0_fixed_hybrid", "t0_trustrec"}
+
+
+def test_adr0017_settings_record_and_apply_the_recency_term(tmp_path: Path) -> None:
+    from scripts.run_hybrid_batch import RECENCY_GRID
+
+    manifest, evidence = _write_snapshot(tmp_path)
+    settings = {
+        "normalization": "minmax",
+        "cold_start": "fallback",
+        "cold_window_days": 1.0,
+        "recency_window_days": 1.0,
+    }
+    components = {
+        "mf_parameters": {"epochs": 3, "embedding_dimensions": 4},
+        "graph_parameters": {"max_iter": 10},
+        "scorer_settings": settings,
+    }
+    tuning = tune_hybrids(
+        manifest,
+        evidence_path=evidence,
+        output_path=tmp_path / "tuning.json",
+        grid=[RECENCY_GRID[0], RECENCY_GRID[-1]],
+        bootstrap_samples=20,
+        **components,
+    )
+
+    assert tuning["scorer_settings"] == settings
+    assert tuning["best"]["t0_trustrec"]["parameters"]["tau"] == 0.8
+    assert len(tuning["grid"]) == 2
+    best = HybridConfig("t0_trustrec", **tuning["best"]["t0_trustrec"]["parameters"])
+    manifests = run_hybrids(
+        manifest,
+        cutoff_name="t1",
+        evidence_path=evidence,
+        configs=[best],
+        output_paths=[tmp_path / "t0.jsonl"],
+        k=10,
+        **components,
+    )
+    assert manifests[0]["scorer_settings"] == settings
+    assert manifests[0]["parameters"]["tau"] == 0.8

@@ -58,6 +58,7 @@ DEFAULT_SCORER_SETTINGS: dict[str, Any] = {
     "normalization": "percentile",
     "cold_start": "blend",
     "cold_window_days": None,
+    "recency_window_days": None,
 }
 DEFAULT_GRID = [
     *(
@@ -80,6 +81,31 @@ DEFAULT_GRID = [
         for rho in (0.2, 0.5, 0.8)
     ),
 ]
+# ADR-0017: a recency term (B5 scores) in the base; every H0 point keeps an aspect term.
+RECENCY_GRID = [
+    *(
+        HybridConfig(
+            "h0_fixed_hybrid", mf_weight=m, graph_weight=g, recency_weight=r, aspect_weight=a
+        )
+        for m, g, r, a in (
+            (0.1, 0.2, 0.6, 0.1),
+            (0.1, 0.1, 0.7, 0.1),
+            (0.2, 0.2, 0.5, 0.1),
+            (0.1, 0.3, 0.4, 0.2),
+            (0.1, 0.2, 0.5, 0.2),
+            (0.0, 0.2, 0.6, 0.2),
+            (0.1, 0.1, 0.5, 0.3),
+            (0.2, 0.2, 0.4, 0.2),
+            (0.0, 0.3, 0.5, 0.2),
+        )
+    ),
+    *(
+        HybridConfig("t0_trustrec", kappa=5.0, g_max=g_max, rho=0.5, tau=tau)
+        for g_max in (0.1, 0.25, 0.5)
+        for tau in (0.4, 0.6, 0.8)
+    ),
+]
+GRIDS = {"adr0009": DEFAULT_GRID, "adr0017": RECENCY_GRID}
 
 
 def _read_evidence(path: Path) -> Iterator[dict[str, Any]]:
@@ -133,6 +159,10 @@ def _components(
     aspect_model = build_aspect_model(_read_evidence(evidence_path), matrix, cutoff_timestamp)
     window = settings["cold_window_days"]
     cold_scores = None if window is None else matrix.recent_popularity(window).astype(float)
+    recency_window = settings["recency_window_days"]
+    recency_scores = (
+        None if recency_window is None else matrix.recent_popularity(recency_window).astype(float)
+    )
     scorer = HybridBatchScorer(
         matrix,
         mf,
@@ -141,6 +171,7 @@ def _components(
         normalization=settings["normalization"],
         cold_start=settings["cold_start"],
         cold_scores=cold_scores,
+        recency_scores=recency_scores,
     )
     return {
         "manifest": manifest,
@@ -263,6 +294,7 @@ def tune_hybrids(
         "scorer_settings": context["scorer_settings"],
         "aspect_summary": context["aspect_summary"],
         "selection_metric": "ndcg@10",
+        "grid": [asdict(config) for config in grid],
         "tuning_budget": {
             model_id: sum(1 for config in grid if config.model_id == model_id)
             for model_id in sorted({config.model_id for config in grid})
@@ -376,6 +408,11 @@ def main() -> None:
         mode.add_argument("--normalization", choices=NORMALIZATIONS, default="percentile")
         mode.add_argument("--cold-start", choices=COLD_START_POLICIES, default="blend")
         mode.add_argument(
+            "--recency-window-days",
+            type=float,
+            help="B5 window for the recency component that ADR-0017 grids use",
+        )
+        mode.add_argument(
             "--cold-window-days",
             type=float,
             help="with --cold-start fallback, rank cold users by B5 with this window (else B0)",
@@ -383,6 +420,7 @@ def main() -> None:
     tune = sub.choices["tune"]
     tune.add_argument("--output", type=Path, required=True)
     tune.add_argument("--bootstrap-samples", type=int, default=200)
+    tune.add_argument("--grid", choices=tuple(GRIDS), default="adr0009")
     run = sub.choices["run"]
     run.add_argument("--cutoff", choices=tuple(INTERACTIONS_BY_CUTOFF), default="t1")
     run.add_argument("--h0", type=json.loads, help="H0 JSON weights")
@@ -401,6 +439,7 @@ def main() -> None:
             "normalization": args.normalization,
             "cold_start": args.cold_start,
             "cold_window_days": args.cold_window_days,
+            "recency_window_days": args.recency_window_days,
         },
     }
     if args.mode == "tune":
@@ -408,6 +447,7 @@ def main() -> None:
             args.snapshot_manifest,
             output_path=args.output,
             bootstrap_samples=args.bootstrap_samples,
+            grid=GRIDS[args.grid],
             **common,
         )
         print(json.dumps({"best": result["best"]}))

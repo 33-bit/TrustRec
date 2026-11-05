@@ -340,3 +340,38 @@ Run `t6-5-video-games-t1-adr0017`, reference B5. Metrics SHA-256:
   ablation with the aspect weight set to 0.
 - Validation predicted these results: on `t0`, every ADR-0017 setting was
   within 0.0015 of B5, and the H0 winner was the best trial.
+
+### H0 aspect ablation on `t1` (update, 2026-11-05)
+
+The selected ADR-0017 H0 uses MF 0, graph 0.2, recency 0.6, and aspect 0.2.
+The ablation sets the aspect weight to 0 and rescales the other weights in
+proportion: graph 0.25 and recency 0.75. Nothing was tuned on `t1`. Run
+`t6-5-video-games-t1-h0-aspect-ablation`, reference H0 without aspect.
+Metrics SHA-256:
+`5aeadc67568406fd0cfa4d85f497632c47be2494711d98238ef53310cc3297b7`.
+
+| Model | NDCG@10 | Difference from H0 without aspect | Recall@10 | Difference |
+| --- | --- | --- | --- | --- |
+| H0 with aspect | 0.1071 | +0.00011 [+0.00001, +0.00022] | 0.1574 | +0.00033 [+0.00007, +0.00061] |
+| H0 without aspect | 0.1070 | | 0.1570 | |
+| B5 | 0.1064 | -0.00058 [-0.00072, -0.00045] | 0.1557 | -0.00130 [-0.00166, -0.00097] |
+
+| Slice | Users | B5 | H0 without aspect | H0 with aspect |
+| --- | --- | --- | --- | --- |
+| no_history | 53,413 | 0.1139 | 0.1139 | 0.1139 |
+| 1-2 | 5,464 | 0.0674 | 0.0723 | 0.0733 |
+| 3-5 | 1,546 | 0.0459 | 0.0495 | 0.0510 |
+| >5 | 1,352 | 0.0398 | 0.0422 | 0.0414 |
+
+Findings:
+
+- Most of H0's lead over B5 (+0.0007) comes from blending the graph score into
+  recency (+0.0006). Aspect evidence adds about +0.0001 NDCG@10. Its 95%
+  interval barely excludes zero, and the Recall@10 interval also excludes zero.
+- The aspect term helps users with 1 to 5 positive interactions and slightly
+  hurts users with more than 5.
+- This is weak evidence. It is one seed, one evidence source, one ablation
+  rule (proportional rescaling), and a single paired bootstrap with no
+  correction for the other comparisons on the same test set. T0's gate showed
+  no aspect effect at all. Report the aspect contribution as small and
+  uncertain, not as a confirmed gain.

@@ -2,6 +2,8 @@
 
 This directory stores decisions, contracts, plans, and run records. The supplied design is kept at [`design/trustrec-design-source.md`](design/trustrec-design-source.md) as a fixed reference. Later decisions are in ADR-0013 and the active specs.
 
+New to the project? Open [`reference/trustrec-explainer-vi.html`](reference/trustrec-explainer-vi.html) in a browser first. It is a plain-language Vietnamese overview of the problem, the method, the measured results, and the limits.
+
 ## Read in this order
 
 1. [`design/trustrec-design-source.md`](design/trustrec-design-source.md): the full research and system design.

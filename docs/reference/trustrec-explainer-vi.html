@@ -1,0 +1,1393 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>TrustRec cho người mới</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: một cột chữ ~68ch, mục lục dính bên trái trên màn hình rộng; hình minh hoạ được rộng hơn cột chữ.
+   Điểm nhấn duy nhất: đoạn review được "tô dạ quang" theo cảm xúc, giống cách hệ thống trích bằng chứng. */
+:root {
+  --bg: #f3f5f6;
+  --surface: #ffffff;
+  --surface-2: #e9edef;
+  --ink: #132029;
+  --ink-2: #44535d;
+  --muted: #67757f;
+  --line: #d5dce0;
+  --grid: #e3e8eb;
+  --accent: #0b6f66;
+  --accent-ink: #ffffff;
+  --accent-soft: #dcefeb;
+  --pos: #17703c;
+  --pos-hl: #c6eed3;
+  --neg: #a8322a;
+  --neg-hl: #f9d3cd;
+  --hl: #fde68a;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s7: #6250d6;
+  --shadow: 0 1px 2px rgb(19 32 41 / 0.06), 0 10px 28px rgb(19 32 41 / 0.07);
+  --inv-bg: #132029;
+  --inv-fg: #f3f5f6;
+  --font-display: "Bricolage Grotesque", "Be Vietnam Pro", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Be Vietnam Pro", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --radius: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e161a;
+    --surface: #152027;
+    --surface-2: #1c2a32;
+    --ink: #e4ecef;
+    --ink-2: #b0bec5;
+    --muted: #8a9aa3;
+    --line: #2a3a43;
+    --grid: #22323a;
+    --accent: #46b8aa;
+    --accent-ink: #0e161a;
+    --accent-soft: #16352f;
+    --pos: #5cc98a;
+    --pos-hl: #1f4b33;
+    --neg: #f08a7e;
+    --neg-hl: #532622;
+    --hl: #5a4a12;
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s7: #9085e9;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.28);
+    --inv-bg: #1f3a3c;
+    --inv-fg: #e4ecef;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e161a;
+  --surface: #152027;
+  --surface-2: #1c2a32;
+  --ink: #e4ecef;
+  --ink-2: #b0bec5;
+  --muted: #8a9aa3;
+  --line: #2a3a43;
+  --grid: #22323a;
+  --accent: #46b8aa;
+  --accent-ink: #0e161a;
+  --accent-soft: #16352f;
+  --pos: #5cc98a;
+  --pos-hl: #1f4b33;
+  --neg: #f08a7e;
+  --neg-hl: #532622;
+  --hl: #5a4a12;
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s7: #9085e9;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.28);
+    --inv-bg: #1f3a3c;
+    --inv-fg: #e4ecef;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.68;
+  text-rendering: optimizeLegibility;
+}
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+a { color: var(--accent); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+b, strong { font-weight: 600; }
+.mono, code { font-family: var(--font-mono); font-size: 0.86em; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.15rem);
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+}
+h3 { font-size: 1.14rem; line-height: 1.35; font-weight: 600; }
+p { margin: 0; }
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.small { font-size: 0.875rem; color: var(--ink-2); }
+.lead { font-size: 1.16rem; color: var(--ink-2); }
+
+/* ---------- gutter wrappers ---------- */
+.band { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1180px; margin: 0 auto; }
+
+/* ---------- hero ---------- */
+.hero { padding-block: clamp(32px, 6vw, 72px) clamp(28px, 5vw, 56px); border-bottom: 1px solid var(--line); background: var(--surface); }
+.hero .wrap { display: grid; gap: clamp(28px, 4vw, 56px); grid-template-columns: minmax(0, 1fr); align-items: center; }
+@media (min-width: 900px) { .hero .wrap { grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr); } }
+.hero-copy { display: grid; gap: 18px; min-width: 0; }
+.hero h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.9rem, 2rem + 4.6vw, 5rem);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+}
+.hero h1 .trust { color: var(--accent); }
+.hero .tagline { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.25rem, 1rem + 1vw, 1.6rem); line-height: 1.3; letter-spacing: -0.01em; max-width: 30ch; }
+.hero .lead { max-width: 56ch; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 10px; padding: 0; margin: 4px 0 0; list-style: none; }
+.facts li { font-size: 0.84rem; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; background: var(--bg); }
+
+/* ---------- evidence highlight motif ---------- */
+mark.hl {
+  color: inherit;
+  padding: 0.04em 0.18em;
+  margin: 0 -0.04em;
+  border-radius: 0.28em 0.2em 0.3em 0.18em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  background: linear-gradient(100deg, transparent 0.2em, var(--pos-hl) 0.35em, var(--pos-hl) calc(100% - 0.3em), transparent calc(100% - 0.12em));
+}
+mark.hl.neg { background: linear-gradient(100deg, transparent 0.2em, var(--neg-hl) 0.35em, var(--neg-hl) calc(100% - 0.3em), transparent calc(100% - 0.12em)); }
+mark.hl[data-tag]::after {
+  content: attr(data-tag);
+  font-family: var(--font-mono);
+  font-size: 0.64em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: 0.55em;
+  margin-left: 0.3em;
+  color: var(--pos);
+}
+mark.hl.neg[data-tag]::after { color: var(--neg); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 0.35em;
+  font-family: var(--font-mono); font-size: 0.76rem; font-weight: 500;
+  padding: 2px 9px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  white-space: nowrap;
+}
+.chip.pos { background: var(--pos-hl); border-color: transparent; color: var(--ink); }
+.chip.neg { background: var(--neg-hl); border-color: transparent; color: var(--ink); }
+.chip .sym { font-weight: 700; }
+.chip.pos .sym { color: var(--pos); }
+.chip.neg .sym { color: var(--neg); }
+
+/* ---------- recommendation card (hero example) ---------- */
+.rec-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 20px 20px 18px;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.rc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.rc-rank { font-family: var(--font-display); font-weight: 800; font-size: 2.1rem; line-height: 1; color: var(--accent); }
+.rc-title { font-family: var(--font-display); font-weight: 700; font-size: 1.45rem; line-height: 1.15; }
+.rc-meta { font-size: 0.83rem; color: var(--muted); margin-top: 2px; }
+.badge {
+  font-family: var(--font-mono); font-size: 0.7rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-2); background: var(--surface-2); border-radius: 6px; padding: 3px 8px;
+}
+.rc-why { font-size: 0.97rem; line-height: 1.55; }
+.ev { margin: 0; padding: 10px 12px; background: var(--bg); border-radius: 8px; font-size: 0.93rem; line-height: 1.6; display: grid; gap: 4px; }
+.ev cite { font-style: normal; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
+.ev-label { font-size: 0.78rem; font-weight: 600; color: var(--ink-2); }
+.rc-foot { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.rc-stats { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; font-size: 0.82rem; }
+.rc-stats div { display: flex; gap: 6px; }
+.rc-stats dt { color: var(--muted); }
+.rc-stats dd { margin: 0; font-weight: 600; }
+
+.segbar { display: flex; gap: 2px; height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+.segbar span { display: block; height: 100%; }
+.segbar span:first-child { border-radius: 999px 0 0 999px; }
+.segbar span:last-child { border-radius: 0 999px 999px 0; }
+.key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.78rem; color: var(--ink-2); }
+.key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.c-mf { background: var(--s1); }
+.c-graph { background: var(--s2); }
+.c-asp { background: var(--s3); }
+
+/* ---------- page grid ---------- */
+.layout { padding-block: clamp(28px, 5vw, 56px) 72px; }
+.layout .wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; }
+@media (min-width: 1040px) { .layout .wrap { grid-template-columns: 210px minmax(0, 1fr); gap: 56px; } }
+
+.toc { min-width: 0; }
+.toc-inner { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 14px 16px; }
+.toc ol { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.toc a { color: var(--ink-2); text-decoration: none; font-size: 0.9rem; }
+.toc a:hover { color: var(--accent); }
+.toc a[aria-current="true"] { color: var(--accent); font-weight: 600; }
+@media (min-width: 1040px) {
+  .toc-inner { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); background: transparent; border: 0; padding: 0; }
+  .toc ol { flex-direction: column; gap: 2px; }
+  .toc a { display: block; padding: 5px 0 5px 12px; border-left: 2px solid var(--line); }
+  .toc a[aria-current="true"] { border-left-color: var(--accent); }
+}
+
+main { min-width: 0; display: grid; gap: clamp(56px, 8vw, 88px); }
+main > section { min-width: 0; display: grid; gap: 22px; scroll-margin-top: 24px; }
+.prose { display: grid; gap: 16px; max-width: 68ch; }
+.prose ul, .prose ol { margin: 0; padding-left: 1.25em; display: grid; gap: 8px; }
+.sec-head { display: grid; gap: 8px; max-width: 68ch; }
+
+/* ---------- summary ---------- */
+.tldr { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.tldr > div { background: var(--surface); padding: 18px 18px 20px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.tldr p { font-size: 0.98rem; line-height: 1.6; }
+
+/* ---------- callouts ---------- */
+.note { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 16px 18px; display: grid; gap: 8px; max-width: 72ch; }
+.note.key-note { background: var(--accent-soft); border-color: transparent; }
+.note h3 { font-size: 1.02rem; }
+.note p { font-size: 0.98rem; }
+
+/* ---------- two people ---------- */
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; max-width: 820px; }
+.person { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.person-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.stars { font-family: var(--font-mono); color: var(--ink-2); font-size: 0.86rem; letter-spacing: 0.08em; }
+.person blockquote { margin: 0; font-size: 0.94rem; line-height: 1.6; color: var(--ink-2); }
+
+.goals { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; max-width: 72ch; counter-reset: g; }
+.goals li { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 12px; counter-increment: g; }
+.goals li::before { content: counter(g); font-family: var(--font-mono); font-weight: 600; font-size: 0.85rem; width: 2rem; height: 2rem; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.goals b { display: block; }
+
+/* ---------- stats ---------- */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 2px; min-width: 0; }
+.stat .v { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.45rem, 1.1rem + 1vw, 1.85rem); line-height: 1.15; letter-spacing: -0.01em; }
+.stat .l { font-size: 0.86rem; color: var(--ink-2); line-height: 1.4; }
+
+.record { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); max-width: 820px; }
+.record div { padding: 10px 14px; border-right: 1px solid var(--line); display: grid; gap: 2px; min-width: 0; }
+.record div:last-child { border-right: 0; }
+.record .k { font-size: 0.74rem; color: var(--muted); font-family: var(--font-mono); letter-spacing: 0.04em; }
+.record .x { font-size: 0.94rem; }
+
+.ratings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 10px; max-width: 820px; }
+.ratings div { padding: 10px 14px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); font-size: 0.92rem; }
+.ratings b { font-family: var(--font-mono); font-weight: 600; margin-right: 6px; }
+
+/* single-column grids: keep wide children (tables, charts) from stretching the column past the screen */
+main > section, .prose, .sec-head, .step-body, .review-demo, .chart, .bars, .lab, .note,
+.hero-copy, .rec-card, .timeline, .finding > div, .verdict, .res-body, .controls, .steps,
+.results, .findings, .status, .ndcg-demo { grid-template-columns: minmax(0, 1fr); }
+
+/* ---------- steps ---------- */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: s; }
+.step { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr); gap: 16px; counter-increment: s; position: relative; padding-bottom: 44px; }
+.step:last-child { padding-bottom: 0; }
+.step::before {
+  content: counter(s);
+  font-family: var(--font-display); font-weight: 700; font-size: 1.15rem;
+  width: 2.6rem; height: 2.6rem; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--ink); color: var(--bg);
+  position: relative; z-index: 1;
+}
+.step::after { content: ""; position: absolute; left: calc(1.3rem - 0.5px); top: 2.6rem; bottom: 0; width: 1px; background: var(--line); }
+.step:last-child::after { display: none; }
+.step-body { display: grid; gap: 16px; min-width: 0; padding-top: 0.35rem; }
+.step-body h3 { font-family: var(--font-display); font-weight: 700; font-size: 1.32rem; letter-spacing: -0.005em; }
+
+/* timeline */
+.timeline { margin: 0; display: grid; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; max-width: 820px; }
+.tl-wrap { position: relative; padding-top: 26px; }
+.tl-bar { display: flex; gap: 2px; height: 58px; }
+.tl-seg { display: grid; align-content: center; padding: 0 10px; font-size: 0.86rem; font-weight: 600; line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
+.tl-seg small { display: block; font-weight: 400; font-size: 0.74rem; color: var(--ink-2); font-family: var(--font-mono); }
+.tl-train { flex: 5; background: var(--surface-2); border-radius: 8px 0 0 8px; }
+.tl-val { flex: 2; background: var(--accent-soft); }
+.tl-test { flex: 2; background: var(--hl); border-radius: 0 8px 8px 0; }
+.tl-mark { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--ink); }
+.tl-mark span { position: absolute; top: 0; left: 0; transform: translateX(-50%); font-family: var(--font-mono); font-size: 0.74rem; font-weight: 600; background: var(--surface); padding: 0 4px; line-height: 20px; }
+.tl-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 8px 16px; font-size: 0.86rem; color: var(--ink-2); }
+.tl-legend b { color: var(--ink); font-family: var(--font-mono); font-weight: 600; }
+.timeline figcaption { font-size: 0.8rem; color: var(--muted); }
+
+/* aspects */
+.aspects { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 8px; max-width: 900px; }
+.aspect { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; min-width: 0; }
+.aspect b { font-family: var(--font-mono); font-size: 0.84rem; font-weight: 600; }
+.aspect span { font-size: 0.86rem; color: var(--ink-2); line-height: 1.45; }
+
+.review-demo { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: grid; gap: 14px; max-width: 820px; }
+.review-text { font-size: 1.02rem; line-height: 1.9; margin: 0; }
+.review-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8rem; color: var(--muted); font-family: var(--font-mono); }
+
+.tbl-wrap { overflow-x: auto; max-width: 100%; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.76rem; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; font-family: var(--font-mono); }
+td.n, th.n { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.data-table { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.data-table table { min-width: 520px; }
+.sent { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.sent.pos { color: var(--pos); }
+.sent.neg { color: var(--neg); }
+
+.rules { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; max-width: 900px; }
+.rules div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; }
+.rules b { font-size: 0.95rem; }
+.rules span { font-size: 0.9rem; color: var(--ink-2); line-height: 1.5; }
+
+.signals { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; max-width: 900px; }
+.signal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.signal .q { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; line-height: 1.3; }
+.signal p { font-size: 0.9rem; color: var(--ink-2); line-height: 1.5; }
+.signal .eyebrow { display: flex; align-items: center; gap: 6px; }
+.signal .eyebrow i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.c-rec { background: var(--s7); }
+
+.states { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 10px; max-width: 900px; }
+.state { border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 6px; border: 1px solid var(--line); background: var(--surface); align-content: start; }
+.state .tag { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
+.state b { font-size: 1rem; }
+.state p { font-size: 0.9rem; color: var(--ink-2); line-height: 1.5; }
+.state.ok { border-top: 3px solid var(--pos); }
+.state.weak { border-top: 3px solid var(--hl); }
+.state.none { border-top: 3px solid var(--line); }
+
+.faith { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; max-width: 820px; }
+.faith div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; }
+.faith .eyebrow { color: var(--ink-2); }
+.faith p { font-size: 0.92rem; line-height: 1.5; }
+
+/* ---------- playground ---------- */
+.lab { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: clamp(16px, 3vw, 24px); display: grid; gap: 22px; }
+.lab-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+@media (min-width: 820px) { .lab-grid { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); } }
+.controls { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.ctl { display: grid; gap: 4px; }
+.ctl label { display: flex; justify-content: space-between; gap: 10px; font-size: 0.92rem; font-weight: 500; }
+.ctl output { font-family: var(--font-mono); font-size: 0.84rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ctl input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+.ctl-sep { border-top: 1px solid var(--line); padding-top: 14px; }
+.gate-readout { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; font-size: 0.9rem; line-height: 1.5; }
+.gate-readout b { font-family: var(--font-mono); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets button {
+  font: inherit; font-size: 0.82rem; cursor: pointer;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  border-radius: 999px; padding: 4px 11px;
+}
+.presets button:hover { border-color: var(--accent); color: var(--accent); }
+.results { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; min-width: 0; }
+.res { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); }
+.res-rank { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; line-height: 1; color: var(--accent); padding-top: 2px; }
+.res-body { display: grid; gap: 8px; min-width: 0; }
+.res-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.res-name { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+.move { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.move.up { color: var(--pos); }
+.move.down { color: var(--neg); }
+.res-bar { display: flex; gap: 2px; height: 10px; background: var(--surface-2); border-radius: 0 4px 4px 0; }
+.res-bar span { height: 100%; display: block; }
+.res-bar .b { background: var(--s1); }
+.res-bar .a { background: var(--s3); border-radius: 0 4px 4px 0; }
+@media (prefers-reduced-motion: no-preference) { .res-bar span { transition: width 0.35s ease; } }
+.res-nums { font-family: var(--font-mono); font-size: 0.76rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.res-why { font-size: 0.9rem; line-height: 1.55; display: grid; gap: 4px; }
+.res-why .st { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; }
+.st.ok { color: var(--pos); }
+.st.weak { color: var(--ink-2); }
+.res-why q { font-style: italic; color: var(--ink-2); }
+
+/* ---------- evaluation ---------- */
+.exam { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; max-width: 900px; }
+.exam div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; }
+.exam p { font-size: 0.92rem; color: var(--ink-2); line-height: 1.5; }
+
+.ndcg-demo { display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; max-width: 820px; }
+.slots { display: flex; gap: 4px; flex-wrap: wrap; }
+.slot { width: 2.1rem; height: 2.1rem; border-radius: 6px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 0.76rem; background: var(--surface-2); color: var(--ink-2); }
+.slot.hit { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.ndcg-row { display: grid; gap: 6px; }
+.ndcg-row p { font-size: 0.9rem; color: var(--ink-2); }
+
+/* ---------- chart ---------- */
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px clamp(12px, 2.5vw, 22px) 16px; display: grid; gap: 14px; max-width: 900px; position: relative; }
+.chart-title { display: grid; gap: 2px; }
+.chart-title b { font-size: 1.02rem; }
+.chart-title span { font-size: 0.86rem; color: var(--ink-2); }
+.bars { display: grid; gap: 0; }
+.bars-row, .bars-axis, .bars-group {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 13rem) minmax(0, 1fr) 4.2rem;
+  gap: 10px;
+  align-items: center;
+}
+@media (max-width: 560px) {
+  .bars-row, .bars-axis, .bars-group { grid-template-columns: 6.6rem minmax(0, 1fr) 3.6rem; gap: 8px; }
+}
+.bars-group { padding: 12px 0 4px; }
+.bars-group span { grid-column: 1 / -1; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.bars-row { padding: 5px 0; border-radius: 6px; cursor: default; }
+.bars-row:hover .track, .bars-row:focus-visible .track { background-color: var(--surface-2); }
+.bars-row .lbl { font-size: 0.86rem; line-height: 1.25; min-width: 0; }
+.bars-row .lbl b { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; margin-right: 4px; }
+.bars-row .lbl small { display: block; color: var(--muted); font-size: 0.74rem; }
+.track { position: relative; height: 22px; border-radius: 4px; background-image: linear-gradient(to right, var(--grid) 1px, transparent 1px); background-size: calc(100% / 6) 100%; background-repeat: repeat-x; }
+.track .fill { position: absolute; left: 0; top: 3px; bottom: 3px; background: var(--s7); border-radius: 0 4px 4px 0; }
+.bars-row .val { font-family: var(--font-mono); font-size: 0.84rem; font-variant-numeric: tabular-nums; text-align: right; }
+.bars-row.ours .lbl { font-weight: 600; }
+.bars-axis { padding-top: 6px; }
+.axis { position: relative; height: 16px; font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.axis span:first-child { transform: none; }
+.axis span:last-child { transform: translateX(-100%); }
+.axis-name { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); text-align: right; }
+.tip {
+  position: absolute; z-index: 5; pointer-events: none;
+  max-width: min(320px, calc(100% - 24px));
+  background: var(--ink); color: var(--bg);
+  border-radius: 8px; padding: 9px 11px; font-size: 0.82rem; line-height: 1.45;
+  box-shadow: var(--shadow);
+}
+.tip b { font-family: var(--font-mono); }
+details.tableview { font-size: 0.9rem; }
+details.tableview summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+details.tableview .tbl-wrap { margin-top: 10px; }
+
+.findings { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: f; max-width: 76ch; }
+.finding { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 14px; counter-increment: f; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+.finding::before { content: counter(f); font-family: var(--font-display); font-weight: 700; font-size: 1.4rem; line-height: 1.1; color: var(--accent); }
+.finding > div { display: grid; gap: 8px; min-width: 0; }
+.finding p { font-size: 0.97rem; }
+.finding .figure-line { font-family: var(--font-mono); font-size: 0.84rem; color: var(--ink-2); background: var(--bg); border-radius: 6px; padding: 6px 10px; justify-self: start; max-width: 100%; overflow-wrap: anywhere; }
+
+.verdict { background: var(--inv-bg); color: var(--inv-fg); border-radius: 14px; padding: clamp(18px, 3vw, 26px); display: grid; gap: 10px; max-width: 900px; }
+.verdict h3 { font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; }
+.verdict p { font-size: 1rem; line-height: 1.65; opacity: 0.92; }
+
+/* four-item grids sit as 2 × 2 so no card is left alone in a row */
+@media (min-width: 600px) { .tldr, .rules, .signals, .meaning { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- meaning / limits / status ---------- */
+.meaning { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; max-width: 900px; }
+.meaning div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.meaning h3 { font-family: var(--font-display); font-weight: 700; font-size: 1.12rem; }
+.meaning p { font-size: 0.94rem; color: var(--ink-2); line-height: 1.55; }
+
+.nots { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-width: 76ch; }
+.nots li { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); gap: 10px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font-size: 0.95rem; }
+.nots li::before { content: "✕"; font-weight: 700; color: var(--neg); font-size: 0.9rem; line-height: 1.7; }
+
+.status { display: grid; gap: 8px; max-width: 900px; }
+.status-row { display: grid; grid-template-columns: 7.2rem minmax(0, 1fr); gap: 12px; align-items: start; padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+@media (max-width: 480px) { .status-row { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+.pill { justify-self: start; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.pill.done { background: var(--pos-hl); color: var(--ink); }
+.pill.doing { background: var(--hl); color: var(--ink); }
+.pill.todo { background: var(--surface-2); color: var(--ink-2); }
+.pill::before { margin-right: 5px; }
+.pill.done::before { content: "✓"; }
+.pill.doing::before { content: "◐"; }
+.pill.todo::before { content: "○"; }
+.status-row p { font-size: 0.94rem; }
+
+.glossary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 0 28px; margin: 0; max-width: 980px; }
+.glossary div { padding: 12px 0; border-bottom: 1px solid var(--line); display: grid; gap: 2px; min-width: 0; }
+.glossary dt { font-weight: 600; font-size: 0.97rem; }
+.glossary dt span { font-family: var(--font-mono); font-size: 0.76rem; font-weight: 400; color: var(--muted); margin-left: 6px; }
+.glossary dd { margin: 0; font-size: 0.92rem; color: var(--ink-2); line-height: 1.55; }
+
+footer.band { border-top: 1px solid var(--line); padding-block: 28px 40px; background: var(--surface); }
+footer p { font-size: 0.86rem; color: var(--muted); max-width: 80ch; }
+</style>
+</head>
+<body>
+
+<header class="band hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <p class="eyebrow">Đồ án capstone · IT4868E Web Mining</p>
+      <h1><span class="trust">Trust</span>Rec</h1>
+      <p class="tagline">Gợi ý game kèm bằng chứng: mỗi đề xuất chỉ ra được những câu review thật đã dẫn tới nó.</p>
+      <p class="lead">Trang này giải thích project cho người chưa biết gì về hệ thống gợi ý: TrustRec giải bài toán gì, chạy ra sao, đã đo được gì, và vì sao cách làm của nó đáng quan tâm.</p>
+      <ul class="facts" aria-label="Thông tin nhanh">
+        <li>Dữ liệu: Amazon Reviews 2023, nhóm Video Games</li>
+        <li>1,7 triệu lượt đánh giá</li>
+        <li>Gần 50.000 game</li>
+        <li>Đầu ra: top 5, 10, 20 game</li>
+      </ul>
+    </div>
+
+    <aside class="rec-card" aria-label="Ví dụ một gợi ý của TrustRec">
+      <div class="rc-top">
+        <span class="rc-rank">#1</span>
+        <span class="badge">Ví dụ minh hoạ · game giả định</span>
+      </div>
+      <div>
+        <h2 class="rc-title">Star Harbor</h2>
+        <p class="rc-meta">Gợi ý cho một người mới chấm 2 game trước đây</p>
+      </div>
+      <div class="chips" aria-label="Khía cạnh nổi bật">
+        <span class="chip pos"><span class="sym">+</span>story</span>
+        <span class="chip pos"><span class="sym">+</span>gameplay</span>
+        <span class="chip neg"><span class="sym">−</span>performance</span>
+      </div>
+      <p class="rc-why">Bạn hay nhắc tới <b>story</b> trong review của mình. Các review viết <b>trước ngày gợi ý</b> khen story của game này nhiều hơn mức trung bình.</p>
+      <blockquote class="ev">
+        <span>“…the <mark class="hl" data-tag="story +">story is engaging</mark> and the characters stay with you…”</span>
+        <cite>review r-4f21 · 03/2018 · 14 tác giả khen story</cite>
+      </blockquote>
+      <blockquote class="ev">
+        <span class="ev-label">Điểm cần cân nhắc</span>
+        <span>“…fun, but it <mark class="hl neg" data-tag="performance −">keeps crashing after the patch</mark>…”</span>
+        <cite>review r-9c07 · 11/2018 · 6 tác giả chê performance</cite>
+      </blockquote>
+      <div class="rc-foot">
+        <dl class="rc-stats">
+          <div><dt>Trạng thái</dt><dd>Đủ bằng chứng</dd></div>
+          <div><dt>Điểm</dt><dd class="num">0,82</dd></div>
+        </dl>
+        <div class="segbar" role="img" aria-label="Điểm 0,82 gồm lọc cộng tác 0,41, đồ thị 0,23, review 0,18">
+          <span class="c-mf" style="width:50%"></span><span class="c-graph" style="width:28%"></span><span class="c-asp" style="width:22%"></span>
+        </div>
+        <div class="key"><span><i class="c-mf"></i>Lọc cộng tác 0,41</span><span><i class="c-graph"></i>Đồ thị 0,23</span><span><i class="c-asp"></i>Review 0,18</span></div>
+      </div>
+    </aside>
+  </div>
+</header>
+
+<div class="band layout">
+  <div class="wrap">
+    <nav class="toc" aria-label="Mục lục">
+      <div class="toc-inner">
+        <p class="eyebrow">Mục lục</p>
+        <ol>
+          <li><a href="#tom-tat">Tóm tắt 30 giây</a></li>
+          <li><a href="#bai-toan">Bài toán</a></li>
+          <li><a href="#du-lieu">Dữ liệu</a></li>
+          <li><a href="#cach-hoat-dong">Cách hoạt động</a></li>
+          <li><a href="#thu-nghiem">Tự tay thử</a></li>
+          <li><a href="#danh-gia">Cách chấm điểm</a></li>
+          <li><a href="#ket-qua">Kết quả</a></li>
+          <li><a href="#y-nghia">Ý nghĩa</a></li>
+          <li><a href="#gioi-han">Giới hạn</a></li>
+          <li><a href="#hien-trang">Hiện trạng</a></li>
+          <li><a href="#thuat-ngu">Thuật ngữ</a></li>
+        </ol>
+      </div>
+    </nav>
+
+    <main>
+      <!-- ================= TÓM TẮT ================= -->
+      <section id="tom-tat" aria-labelledby="h-tomtat">
+        <div class="sec-head">
+          <p class="eyebrow">Đọc phần này nếu chỉ có 30 giây</p>
+          <h2 id="h-tomtat">Tóm tắt</h2>
+        </div>
+        <div class="tldr">
+          <div>
+            <p class="eyebrow">Làm gì</p>
+            <p>Với mỗi người dùng, chọn ra 10 game mà người đó nhiều khả năng sẽ chấm từ 4 sao trở lên, kèm lý do có thể tự kiểm tra.</p>
+          </div>
+          <div>
+            <p class="eyebrow">Làm thế nào</p>
+            <p>Kết hợp ba nguồn: hành vi của những người có gu giống bạn, mạng lưới kết nối người và game, và ý kiến trong review về từng khía cạnh như gameplay hay story. Một mô hình AI đã đọc hơn 1,5 triệu review để rút ra các ý kiến đó.</p>
+          </div>
+          <div>
+            <p class="eyebrow">Kết quả đến nay</p>
+            <p>Mô hình tốt nhất nhỉnh hơn đối thủ mạnh nhất một chút. Yếu tố quyết định hoá ra là <b>độ mới</b> của game. Phần ý kiến trong review chỉ đóng góp rất nhỏ và chưa vững.</p>
+          </div>
+          <div>
+            <p class="eyebrow">Ý nghĩa</p>
+            <p>Gợi ý minh bạch, có trích dẫn, dám nói “chưa đủ bằng chứng”. Kèm theo là một quy trình đánh giá chặt chẽ: không để dữ liệu tương lai lọt vào, không thổi phồng kết quả.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= BÀI TOÁN ================= -->
+      <section id="bai-toan" aria-labelledby="h-baitoan">
+        <div class="sec-head">
+          <p class="eyebrow">Vì sao cần TrustRec</p>
+          <h2 id="h-baitoan">Bài toán: gợi ý mà không giải thích là đoán mò</h2>
+        </div>
+        <div class="prose">
+          <p>Bạn đã gặp hệ thống gợi ý ở Shopee, Netflix hay Steam: “có thể bạn sẽ thích”. Phần lớn chúng là hộp đen. Bạn không biết vì sao một món được đề xuất, và hệ thống cũng không nói khi nó đang đoán.</p>
+          <p>Thêm một vấn đề nữa: số sao không kể hết câu chuyện. Hãy xem hai người cùng chấm 4 sao cho một game.</p>
+        </div>
+
+        <div class="pair">
+          <div class="person">
+            <div class="person-head"><b>Người A</b><span class="stars" aria-label="4 trên 5 sao">★★★★☆</span></div>
+            <blockquote>“Cốt truyện cuốn, <mark class="hl" data-tag="story +">nhân vật có chiều sâu</mark>, <mark class="hl" data-tag="gameplay +">combat đã tay</mark>.”</blockquote>
+            <div class="chips"><span class="chip">quan tâm: story</span><span class="chip">gameplay</span></div>
+          </div>
+          <div class="person">
+            <div class="person-head"><b>Người B</b><span class="stars" aria-label="4 trên 5 sao">★★★★☆</span></div>
+            <blockquote>“Vui, nhưng <mark class="hl neg" data-tag="performance −">hay giật khi đông người</mark>; <mark class="hl" data-tag="multiplayer +">chơi co-op với bạn rất ổn</mark>.”</blockquote>
+            <div class="chips"><span class="chip">quan tâm: performance</span><span class="chip">multiplayer</span></div>
+          </div>
+        </div>
+        <p class="small" style="max-width:68ch">Chỉ nhìn số sao, hệ thống thấy hai người giống hệt nhau. Đọc review mới thấy họ cần những game khác nhau. (Hai câu trên là ví dụ tự viết.)</p>
+
+        <div class="prose">
+          <p>TrustRec đặt ra ba yêu cầu cho mỗi danh sách gợi ý:</p>
+        </div>
+        <ol class="goals">
+          <li><div><b>Xếp hạng tốt</b>Đưa đúng game lên đầu danh sách top K, với K bằng 5, 10 và 20.</div></li>
+          <li><div><b>Giải thích có trích dẫn</b>Mỗi lý do gắn với đoạn review gốc, viết trước thời điểm gợi ý, để ai cũng đọc lại được.</div></li>
+          <li><div><b>Trung thực về giới hạn</b>Nêu cả mặt trái, nêu số người ủng hộ, và từ chối giải thích khi bằng chứng còn yếu.</div></li>
+        </ol>
+
+        <div class="note key-note">
+          <h3>Chữ “Trust” ở đây nghĩa là gì?</h3>
+          <p>Trust nghĩa là bạn <b>tự kiểm tra được</b> lý do: đoạn review nào, của bao nhiêu người, viết lúc nào. Nó không có nghĩa hệ thống phát hiện review giả hay chấm điểm độ trung thực của người viết. Dữ liệu Amazon không có nhãn thật hoặc giả cho từng review, nên project không đưa ra tuyên bố đó.</p>
+        </div>
+      </section>
+
+      <!-- ================= DỮ LIỆU ================= -->
+      <section id="du-lieu" aria-labelledby="h-dulieu">
+        <div class="sec-head">
+          <p class="eyebrow">Nguyên liệu</p>
+          <h2 id="h-dulieu">Dữ liệu: 1,7 triệu lượt đánh giá game trên Amazon</h2>
+        </div>
+        <div class="prose">
+          <p>Nguồn chính là bộ <b>Amazon Reviews 2023</b> do McAuley Lab công bố. Nhóm chọn danh mục Video Games và chỉ giữ game phần mềm. Phụ kiện như tay cầm hay bộ sạc bị loại, vì nói về “cốt truyện của một bộ sạc” thì vô nghĩa.</p>
+          <p>Mỗi lượt đánh giá có năm thông tin:</p>
+        </div>
+        <div class="record" aria-label="Các trường của một lượt đánh giá">
+          <div><span class="k">ai</span><span class="x">Người dùng (mã nội bộ)</span></div>
+          <div><span class="k">cái gì</span><span class="x">Game</span></div>
+          <div><span class="k">bao nhiêu</span><span class="x">Số sao 1–5</span></div>
+          <div><span class="k">nói gì</span><span class="x">Nội dung review</span></div>
+          <div><span class="k">khi nào</span><span class="x">Thời điểm viết</span></div>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><span class="v">4.624.615</span><span class="l">review được quét trong nhóm Video Games</span></div>
+          <div class="stat"><span class="v">1.717.097</span><span class="l">lượt đánh giá game phần mềm được giữ lại</span></div>
+          <div class="stat"><span class="v">49.749</span><span class="l">game</span></div>
+          <div class="stat"><span class="v">1.031.539</span><span class="l">người dùng</span></div>
+        </div>
+
+        <div class="note">
+          <h3>Dữ liệu rất thưa</h3>
+          <p>Trung bình mỗi người chỉ đánh giá khoảng <b>1,7 game</b>. Trong giai đoạn kiểm tra, <b>88%</b> người dùng chưa từng chấm game nào từ 4 sao trở lên trước đó. Gợi ý cho người gần như chưa có lịch sử gọi là bài toán <i>cold start</i>. Chi tiết này chi phối gần như mọi kết quả ở phần sau.</p>
+        </div>
+
+        <div class="prose"><p>Cách hiểu số sao trong project:</p></div>
+        <div class="ratings">
+          <div><b>4–5★</b>Tín hiệu “thích”. Đây là thứ cần đoán đúng.</div>
+          <div><b>1–2★</b>Không thích, đã quan sát được.</div>
+          <div><b>3★</b>Trung lập.</div>
+          <div><b>Không review</b>Chưa biết. Không được coi là “không thích”.</div>
+        </div>
+      </section>
+
+      <!-- ================= CÁCH HOẠT ĐỘNG ================= -->
+      <section id="cach-hoat-dong" aria-labelledby="h-cach">
+        <div class="sec-head">
+          <p class="eyebrow">Từ review thô đến lời giải thích</p>
+          <h2 id="h-cach">Hệ thống hoạt động thế nào</h2>
+          <p class="lead">Toàn bộ phần nặng chạy trước, theo từng “ảnh chụp” dữ liệu. Khi cần gợi ý, hệ thống chỉ đọc lại điểm và bằng chứng đã tính sẵn. Quy trình có bảy bước.</p>
+        </div>
+
+        <ol class="steps">
+          <!-- Step 1 -->
+          <li class="step">
+            <div class="step-body">
+              <h3>Cắt dữ liệu theo mốc thời gian</h3>
+              <div class="prose">
+                <p>Hãy hình dung một kỳ thi: thí sinh không được xem đề trước. Project chọn hai mốc thời gian chung cho mọi người dùng, gọi là <b>T0</b> và <b>T1</b>. Mọi thứ hệ thống dùng để gợi ý, kể cả các câu review làm bằng chứng, phải có từ trước mốc.</p>
+                <p>Lỡ dùng thông tin tương lai gọi là <b>rò rỉ dữ liệu</b> (leakage). Nó làm kết quả đẹp một cách giả tạo. Project có chương trình tự động kiểm tra rò rỉ cho từng bảng dữ liệu.</p>
+              </div>
+              <figure class="timeline" aria-label="Sơ đồ chia dữ liệu theo thời gian">
+                <div class="tl-wrap">
+                  <div class="tl-bar">
+                    <div class="tl-seg tl-train">Học<small>trước T0</small></div>
+                    <div class="tl-seg tl-val">Ôn thi<small>T0 → T1</small></div>
+                    <div class="tl-seg tl-test">Thi thật<small>sau T1</small></div>
+                  </div>
+                  <div class="tl-mark" style="left:calc(5 / 9 * 100%)"><span>T0</span></div>
+                  <div class="tl-mark" style="left:calc(7 / 9 * 100%)"><span>T1</span></div>
+                </div>
+                <div class="tl-legend">
+                  <div><b>Học (train)</b><br>1.373.677 lượt đánh giá trước <span class="num">T0 = 13/01/2019</span>. Dùng để huấn luyện mô hình, dựng đồ thị và hồ sơ.</div>
+                  <div><b>Ôn thi (validation)</b><br>95.559 lượt thích mới từ T0 đến <span class="num">T1 = 31/08/2020</span>. Dùng để chọn cấu hình.</div>
+                  <div><b>Thi thật (test)</b><br>76.435 lượt thích mới sau T1. Dùng đúng một lần để chấm điểm cuối.</div>
+                </div>
+                <figcaption>Minh hoạ, không theo tỉ lệ thời gian. Trước khi thi thật, mọi mô hình được dựng lại từ toàn bộ dữ liệu trước T1.</figcaption>
+              </figure>
+              <p class="small" style="max-width:68ch">Vì sao phải dùng mốc chung? Nếu chỉ giấu “review cuối cùng của mỗi người”, mô hình vẫn có thể học từ hành vi tương lai của người khác. Mốc chung bịt lỗ hổng đó.</p>
+            </div>
+          </li>
+
+          <!-- Step 2 -->
+          <li class="step">
+            <div class="step-body">
+              <h3>Cho AI đọc review và tách ý kiến theo khía cạnh</h3>
+              <div class="prose">
+                <p>Một review thường khen chỗ này, chê chỗ kia. Hệ thống tách nó ra theo tám <b>khía cạnh</b> (aspect) của một game:</p>
+              </div>
+              <div class="aspects">
+                <div class="aspect"><b>gameplay</b><span>Cơ chế chơi, nhịp độ, độ cuốn hút</span></div>
+                <div class="aspect"><b>story</b><span>Cốt truyện, nhân vật, hội thoại</span></div>
+                <div class="aspect"><b>graphics</b><span>Hình ảnh, phong cách, animation</span></div>
+                <div class="aspect"><b>performance</b><span>Tốc độ, lỗi, crash, lag, độ ổn định</span></div>
+                <div class="aspect"><b>controls</b><span>Điều khiển, thao tác, độ phản hồi</span></div>
+                <div class="aspect"><b>multiplayer</b><span>Chơi online hoặc cùng máy với người khác</span></div>
+                <div class="aspect"><b>content_replay</b><span>Lượng nội dung, độ dài, giá trị chơi lại</span></div>
+                <div class="aspect"><b>value</b><span>Có đáng tiền, đáng thời gian không (không phải “rẻ”)</span></div>
+              </div>
+
+              <div class="prose"><p>Dưới đây là một review thật trong dữ liệu, cùng các nhãn AI đã gán. Phần tô màu là đoạn trích làm bằng chứng.</p></div>
+              <div class="review-demo">
+                <div class="review-meta"><span>review thật · 3★</span><span>nhãn do AI gán</span></div>
+                <p class="review-text" lang="en">“Even though you don't play on line like you would for a MMORPG <mark class="hl neg" data-tag="multiplayer −">you are still required to have an Internet connection</mark>. The whole reason for buying discs is so I can play when I am off line... Other than that <mark class="hl" data-tag="gameplay +">the game is amazing</mark>, <mark class="hl" data-tag="graphics +">the art is amazing</mark>, and <mark class="hl" data-tag="value +">the price was good</mark>.”</p>
+                <div class="tbl-wrap">
+                  <table>
+                    <thead><tr><th>Khía cạnh</th><th>Cảm xúc</th><th>Đoạn trích</th></tr></thead>
+                    <tbody>
+                      <tr><td class="mono">multiplayer</td><td><span class="sent neg">− tiêu cực</span></td><td lang="en">you are still required to have an Internet connection</td></tr>
+                      <tr><td class="mono">gameplay</td><td><span class="sent pos">+ tích cực</span></td><td lang="en">the game is amazing</td></tr>
+                      <tr><td class="mono">graphics</td><td><span class="sent pos">+ tích cực</span></td><td lang="en">the art is amazing</td></tr>
+                      <tr><td class="mono">value</td><td><span class="sent pos">+ tích cực</span></td><td lang="en">the price was good</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="small">Review chỉ 3 sao, nhưng ba khía cạnh được khen và một bị chê. Số sao tổng che mất chi tiết này.</p>
+              </div>
+              <div class="prose">
+                <p>Một mô hình ngôn ngữ lớn (LLM) đã đọc toàn bộ <b>1.545.387 review</b> viết trước T1, mất khoảng 37 giờ và tạo ra <b>3,49 triệu nhãn</b>. Mỗi nhãn lưu đúng vị trí ký tự của đoạn trích trong review gốc, nên ai cũng đối chiếu lại được. Nhóm cũng làm một bộ gán nhãn bằng từ điển và luật đơn giản để so sánh.</p>
+                <p class="small">Nhãn do AI tạo không phải “đáp án chuẩn” do con người chấm. Project gọi chúng là nhãn “bạc” (silver) và chỉ đo mức nhất quán giữa các lần gán, không gọi đó là độ chính xác.</p>
+              </div>
+            </div>
+          </li>
+
+          <!-- Step 3 -->
+          <li class="step">
+            <div class="step-body">
+              <h3>Gộp ý kiến thành hồ sơ của từng game</h3>
+              <div class="prose">
+                <p>Với mỗi game và mỗi khía cạnh, hệ thống gộp các ý kiến thành một điểm, kèm <b>mức hỗ trợ</b> cho biết điểm đó dựa trên bao nhiêu bằng chứng. Việc gộp theo bốn quy tắc:</p>
+              </div>
+              <div class="rules">
+                <div><b>Một review, một phiếu</b><span>Mỗi review chỉ góp một lần cho mỗi khía cạnh, dù nhắc đi nhắc lại.</span></div>
+                <div><b>Bản sao bị giảm trọng số</b><span>Một đoạn văn bị dán nhiều lần không được chi phối kết quả.</span></div>
+                <div><b>Ít review thì kéo về trung bình</b><span>Một lời khen duy nhất không đủ biến game thành “xuất sắc”.</span></div>
+                <div><b>Chưa ai nói tới là “chưa biết”</b><span>Không có bằng chứng không có nghĩa khía cạnh đó kém.</span></div>
+              </div>
+            </div>
+          </li>
+
+          <!-- Step 4 -->
+          <li class="step">
+            <div class="step-body">
+              <h3>Đoán người dùng quan tâm điều gì</h3>
+              <div class="prose">
+                <p>Nếu bạn hay nhắc tới performance trong các review cũ, hệ thống cho rằng bạn quan tâm performance, dù bạn khen hay chê. Người chưa viết gì nhận mức quan tâm trung bình của cả cộng đồng.</p>
+                <p>Đây chỉ là giả định về sở thích, nên trong bản demo bạn có thể tự chỉnh mức ưu tiên. Giao diện tách riêng phần hệ thống tự học với phần bạn vừa nhập.</p>
+              </div>
+            </div>
+          </li>
+
+          <!-- Step 5 -->
+          <li class="step">
+            <div class="step-body">
+              <h3>Chấm điểm từ nhiều nguồn rồi kết hợp</h3>
+              <div class="prose"><p>Mỗi game chưa được bạn đánh giá nhận điểm từ các nguồn tín hiệu sau:</p></div>
+              <div class="signals">
+                <div class="signal">
+                  <span class="eyebrow"><i class="c-mf"></i>Lọc cộng tác</span>
+                  <span class="q">Người có gu giống bạn đã thích gì?</span>
+                  <p>Học “gu” ẩn của người và game từ lịch sử chấm điểm (BPR Matrix Factorization, Item kNN).</p>
+                </div>
+                <div class="signal">
+                  <span class="eyebrow"><i class="c-graph"></i>Đồ thị</span>
+                  <span class="q">Từ bạn, đi theo các mối nối sẽ tới game nào?</span>
+                  <p>Nối người với game họ thích thành một mạng lưới, rồi “đi dạo ngẫu nhiên” xuất phát từ bạn (Personalized PageRank).</p>
+                </div>
+                <div class="signal">
+                  <span class="eyebrow"><i class="c-asp"></i>Ý kiến theo khía cạnh</span>
+                  <span class="q">Review nói gì về điều bạn quan tâm?</span>
+                  <p>Game được khen ở khía cạnh bạn coi trọng thì được cộng điểm, bị chê thì bị trừ.</p>
+                </div>
+                <div class="signal">
+                  <span class="eyebrow"><i class="c-rec"></i>Độ mới · thêm vào sau</span>
+                  <span class="q">Gần đây người ta đang thích game nào?</span>
+                  <p>Đếm lượt thích trong 60 ngày trước mốc. Thêm vào sau khi kết quả cho thấy tín hiệu này rất mạnh.</p>
+                </div>
+              </div>
+              <div class="prose">
+                <p>Các nguồn có thang điểm khác nhau, nên được đưa về cùng thang 0–1 rồi mới cộng lại. Có hai cách cộng:</p>
+                <ul>
+                  <li><b>H0, hybrid cố định:</b> mỗi nguồn có một trọng số cố định cho mọi người. Đây là đối chứng trực tiếp.</li>
+                  <li><b>T0, TrustRec:</b> có một “cổng” tự điều chỉnh mức tin vào review. Người ít lịch sử và game có nhiều bằng chứng thì cổng mở rộng, review được nghe nhiều hơn. Người nhiều lịch sử, hoặc game ít review, thì hệ thống dựa vào lọc cộng tác và đồ thị.</li>
+                </ul>
+                <p>Ý tưởng của cổng là một giả thuyết cần kiểm chứng, không phải điều chắc chắn đúng. Bạn có thể thử nó ở <a href="#thu-nghiem">phần Tự tay thử</a>.</p>
+              </div>
+            </div>
+          </li>
+
+          <!-- Step 6 -->
+          <li class="step">
+            <div class="step-body">
+              <h3>Viết lời giải thích</h3>
+              <div class="prose">
+                <p>Hệ thống chọn khía cạnh đóng góp nhiều nhất cho điểm của game, rồi viết lý do theo mẫu cố định gắn với bằng chứng thật: trích đoạn review, ghi số tác giả, ghi thời điểm. Nếu một khía cạnh bạn quan tâm bị chê, nó hiện thành “điểm cần cân nhắc”. Mỗi lời giải thích có một trong ba trạng thái:</p>
+              </div>
+              <div class="states">
+                <div class="state ok"><span class="tag">supported</span><b>Đủ bằng chứng</b><p>Đủ số tác giả khác nhau, đủ mức hỗ trợ, AI đủ tự tin. Hiện lý do kèm trích dẫn.</p></div>
+                <div class="state weak"><span class="tag">insufficient_support</span><b>Chưa đủ bằng chứng</b><p>Vẫn có thể gợi ý, nhưng ghi rõ “chưa đủ review để giải thích chắc chắn theo khía cạnh”.</p></div>
+                <div class="state none"><span class="tag">unavailable</span><b>Không có lời giải thích</b><p>Không có bằng chứng phù hợp. Hệ thống không bịa ra lý do.</p></div>
+              </div>
+              <div class="prose">
+                <ul>
+                  <li>Không nói “đa số người chơi đồng ý” nếu không có con số cụ thể: bao nhiêu người, trên tổng bao nhiêu, trong khoảng thời gian nào.</li>
+                  <li>Không trình bày điểm như “xác suất bạn sẽ mua”.</li>
+                  <li>Nếu game đứng cao chủ yếu nhờ lọc cộng tác hay đồ thị, lời giải thích phải nói rõ review chỉ là một phần nhỏ.</li>
+                </ul>
+              </div>
+            </div>
+          </li>
+
+          <!-- Step 7 -->
+          <li class="step">
+            <div class="step-body">
+              <h3>Tự kiểm tra xem lời giải thích có “thật lòng” không</h3>
+              <div class="prose">
+                <p>Có câu review hợp lý chưa chắc câu đó thật sự ảnh hưởng tới điểm. Vì vậy hệ thống làm một phép thử gọi là kiểm tra <b>faithfulness</b> (độ trung thực của lời giải thích):</p>
+              </div>
+              <div class="faith">
+                <div><span class="eyebrow">Thử 1</span><p>Xoá các review đã được trích làm bằng chứng, tính lại điểm.</p></div>
+                <div><span class="eyebrow">Thử 2</span><p>Xoá cùng số lượng review nhưng chọn ngẫu nhiên, tính lại điểm.</p></div>
+                <div><span class="eyebrow">Kết luận</span><p>Nếu thử 1 làm điểm thay đổi nhiều hơn rõ rệt so với thử 2, lời giải thích được coi là trung thực.</p></div>
+              </div>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <!-- ================= THỬ NGHIỆM ================= -->
+      <section id="thu-nghiem" aria-labelledby="h-thu">
+        <div class="sec-head">
+          <p class="eyebrow">Mô phỏng tương tác</p>
+          <h2 id="h-thu">Tự tay thử: chỉnh ưu tiên và xem danh sách thay đổi</h2>
+          <p class="lead">Bốn game và mọi con số ở đây đều là giả định, nhằm minh hoạ cách TrustRec kết hợp điểm. Kéo thanh trượt để đổi mức bạn quan tâm từng khía cạnh, và số game bạn từng đánh giá.</p>
+        </div>
+
+        <div class="lab">
+          <div class="lab-grid">
+            <div class="controls" id="controls">
+              <p class="eyebrow">Bạn quan tâm điều gì?</p>
+              <div class="ctl"><label for="w-story">Story · cốt truyện <output id="o-story" for="w-story">8</output></label><input type="range" id="w-story" min="0" max="10" step="1" value="8"></div>
+              <div class="ctl"><label for="w-gameplay">Gameplay · lối chơi <output id="o-gameplay" for="w-gameplay">5</output></label><input type="range" id="w-gameplay" min="0" max="10" step="1" value="5"></div>
+              <div class="ctl"><label for="w-performance">Performance · độ mượt, ít lỗi <output id="o-performance" for="w-performance">3</output></label><input type="range" id="w-performance" min="0" max="10" step="1" value="3"></div>
+              <div class="ctl"><label for="w-multiplayer">Multiplayer · chơi cùng người khác <output id="o-multiplayer" for="w-multiplayer">2</output></label><input type="range" id="w-multiplayer" min="0" max="10" step="1" value="2"></div>
+              <div class="ctl ctl-sep"><label for="w-history">Số game bạn từng chấm 4★ trở lên <output id="o-history" for="w-history">2</output></label><input type="range" id="w-history" min="1" max="30" step="1" value="2"></div>
+              <div class="presets" aria-label="Kịch bản mẫu">
+                <button type="button" id="p-perf" data-preset="0,0,10,0,1">Chỉ quan tâm performance</button>
+                <button type="button" id="p-multi" data-preset="0,2,0,10,1">Thích chơi cùng bạn bè</button>
+                <button type="button" id="p-veteran" data-preset="8,5,3,2,30">Người chơi lâu năm</button>
+                <button type="button" id="p-reset" data-preset="8,5,3,2,2">Đặt lại</button>
+              </div>
+              <div class="gate-readout" id="gate-readout" aria-live="polite"></div>
+            </div>
+
+            <div style="min-width:0; display:grid; gap:10px; align-content:start">
+              <div class="key"><span><i class="c-mf"></i>Phần từ lọc cộng tác và đồ thị</span><span><i class="c-asp"></i>Phần từ review theo khía cạnh</span></div>
+              <ol class="results" id="results" aria-live="polite" aria-label="Danh sách gợi ý"></ol>
+              <p class="small">Mũi tên so với thứ tự khi chỉ dùng lọc cộng tác và đồ thị. Phần xanh lá trên mỗi thanh là phần điểm đến từ review: khi nó nhỏ, lý do theo khía cạnh chỉ là một phần nhỏ của câu chuyện. Trong hệ thống thật, người chưa có lịch sử nào sẽ nhận danh sách “phổ biến gần đây”.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ĐÁNH GIÁ ================= -->
+      <section id="danh-gia" aria-labelledby="h-danhgia">
+        <div class="sec-head">
+          <p class="eyebrow">Làm sao biết hệ thống tốt?</p>
+          <h2 id="h-danhgia">Cách chấm điểm: một kỳ thi với đáp án từ tương lai</h2>
+        </div>
+        <div class="exam">
+          <div><b>Đề thi</b><p>Chỉ dùng dữ liệu trước T1, mỗi mô hình xếp hạng gần 50.000 game cho từng người (trừ game họ đã chấm) và chọn ra top 10.</p></div>
+          <div><b>Đáp án</b><p>Những game người đó thật sự chấm từ 4 sao trở lên sau T1. Có 61.775 người dùng có đáp án.</p></div>
+          <div><b>Thang điểm</b><p>Đáp án nằm trong top 10 thì được điểm, nằm càng cao càng nhiều điểm.</p></div>
+        </div>
+
+        <div class="ndcg-demo">
+          <b>NDCG@10 và Recall@10 nói bằng lời</b>
+          <div class="ndcg-row">
+            <div class="slots" aria-label="Đáp án ở vị trí 1"><span class="slot hit">1</span><span class="slot">2</span><span class="slot">3</span><span class="slot">4</span><span class="slot">5</span><span class="slot">6</span><span class="slot">7</span><span class="slot">8</span><span class="slot">9</span><span class="slot">10</span></div>
+            <p>Game người dùng thích nằm ở vị trí 1: được trọn điểm, NDCG = 1.</p>
+          </div>
+          <div class="ndcg-row">
+            <div class="slots" aria-label="Đáp án ở vị trí 7"><span class="slot">1</span><span class="slot">2</span><span class="slot">3</span><span class="slot">4</span><span class="slot">5</span><span class="slot">6</span><span class="slot hit">7</span><span class="slot">8</span><span class="slot">9</span><span class="slot">10</span></div>
+            <p>Nằm ở vị trí 7: vẫn được điểm nhưng ít hơn nhiều, NDCG ≈ 0,33. Không có trong top 10: 0 điểm.</p>
+          </div>
+          <p class="small"><b>NDCG@10</b> là trung bình điểm này trên mọi người dùng, từ 0 đến 1. <b>Recall@10</b> là tỉ lệ game người dùng thật sự thích lọt vào top 10. Con số thường rất nhỏ, khoảng 0,03 đến 0,1, vì đoán trúng vài game trong gần 50.000 game là rất khó. Con số nhỏ không có nghĩa hệ thống tệ; điều quan trọng là so sánh giữa các mô hình.</p>
+        </div>
+
+        <div class="prose"><p>TrustRec được so với các mô hình đối chứng (baseline), từ đơn giản đến phức tạp:</p></div>
+        <div class="data-table tbl-wrap">
+          <table>
+            <thead><tr><th>Mã</th><th>Mô hình</th><th>Ý tưởng</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">B0</td><td>Phổ biến nhất</td><td>Gợi ý các game được thích nhiều nhất từ trước tới nay, giống nhau cho mọi người.</td></tr>
+              <tr><td class="mono">B1</td><td>Item kNN</td><td>Bạn thích game X; người thích X cũng thích Y; vậy gợi ý Y.</td></tr>
+              <tr><td class="mono">B2</td><td>BPR MF</td><td>Học “gu” ẩn của người và game từ lịch sử chấm điểm.</td></tr>
+              <tr><td class="mono">B3</td><td>Personalized PageRank</td><td>Đi dạo ngẫu nhiên trên đồ thị người và game, xuất phát từ bạn.</td></tr>
+              <tr><td class="mono">B5</td><td>Phổ biến gần đây</td><td>Game được thích nhiều nhất trong 60 ngày trước mốc. Thêm vào để kiểm tra một nghi vấn (xem phần Kết quả).</td></tr>
+              <tr><td class="mono">H0</td><td>Hybrid cố định</td><td>Cộng các nguồn trên với trọng số cố định.</td></tr>
+              <tr><td class="mono">T0</td><td>TrustRec</td><td>Hybrid có cổng tự điều chỉnh mức tin vào review.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="prose"><p>Để cuộc so sánh công bằng, project giữ các luật sau:</p></div>
+        <div class="rules">
+          <div><b>Cùng đề cho mọi mô hình</b><span>Cùng người dùng, cùng danh sách game ứng viên, cùng đáp án.</span></div>
+          <div><b>Cùng số lần thử</b><span>Mỗi mô hình được thử tối đa 9 cấu hình, chỉ trên dữ liệu “ôn thi”.</span></div>
+          <div><b>Không nhìn đề thi thật</b><span>Dữ liệu test chỉ dùng một lần ở cuối, không dùng để chỉnh gì cả.</span></div>
+          <div><b>Đo độ chắc chắn</b><span>Lấy mẫu lại người dùng 2.000 lần (bootstrap) để xem chênh lệch có ổn định hay chỉ là may.</span></div>
+        </div>
+      </section>
+
+      <!-- ================= KẾT QUẢ ================= -->
+      <section id="ket-qua" aria-labelledby="h-ketqua">
+        <div class="sec-head">
+          <p class="eyebrow">Đã đo trên dữ liệu thật</p>
+          <h2 id="h-ketqua">Kết quả: độ mới thắng, review chỉ giúp một chút</h2>
+          <p class="lead">Đây là phần thú vị nhất của project, vì kết quả không đi theo kỳ vọng ban đầu và nhóm đã lần theo nguyên nhân tới cùng.</p>
+        </div>
+
+        <figure class="chart" id="chart" style="margin:0">
+          <div class="chart-title">
+            <b>NDCG@10 trên tập thi thật (61.775 người dùng)</b>
+            <span>Cao hơn là tốt hơn. Di chuột hoặc chọn một dòng để xem chênh lệch và khoảng tin cậy.</span>
+          </div>
+          <div class="bars" id="bars" role="list"></div>
+          <div class="tip" id="tip" hidden></div>
+          <details class="tableview">
+            <summary>Xem dạng bảng</summary>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Mô hình</th><th class="n">NDCG@10</th><th class="n">Recall@10</th><th>Ghi chú</th></tr></thead>
+                <tbody id="chart-table"></tbody>
+              </table>
+            </div>
+          </details>
+        </figure>
+
+        <ol class="findings">
+          <li class="finding"><div>
+            <h3>Dữ liệu quá thưa, các mô hình “thông minh” không thắng nổi “phổ biến nhất”</h3>
+            <p>Với 88% người dùng chưa có lịch sử, mọi mô hình cá nhân hoá đều phải quay về danh sách phổ biến. BPR MF ngang B0, Item kNN còn thấp hơn. Chỉ Personalized PageRank (B3) nhỉnh hơn, và chủ yếu ở nhóm người có 1–2 lượt thích.</p>
+            <span class="figure-line">B3 − B0 = +0,0015 [+0,0012; +0,0020]</span>
+          </div></li>
+          <li class="finding"><div>
+            <h3>Hybrid bản đầu tưởng thắng lớn, nhưng có điều bất thường</h3>
+            <p>H0 và T0 vượt B0 rõ rệt trên tập thi thật, trong khi ở giai đoạn ôn thi chúng lại thua. Nhóm điều tra và thấy toàn bộ lợi thế đến từ người không có lịch sử: họ nhận chung một danh sách, và danh sách đó vô tình có thêm vài game mới ra mắt năm 2020. Tức là lợi thế không đến từ review.</p>
+            <span class="figure-line">H0 bản đầu − B0 = +0,0116 [+0,0107; +0,0125]</span>
+          </div></li>
+          <li class="finding"><div>
+            <h3>Kiểm chứng nghi vấn: “phổ biến gần đây” mạnh gấp 4 lần</h3>
+            <p>Nhóm thêm B5: chỉ đếm lượt thích trong 60 ngày trước mốc. Mô hình đơn giản này đạt NDCG@10 gấp khoảng 4 lần B0 và thắng mọi mô hình khác ở mọi nhóm người dùng, kể cả người có nhiều lịch sử. Với game, thứ người ta đang chơi gần đây quan trọng hơn thứ nổi tiếng từ lâu.</p>
+            <span class="figure-line">B5 = 0,1064 so với B0 = 0,0268</span>
+          </div></li>
+          <li class="finding"><div>
+            <h3>Thêm độ mới vào hybrid: thắng B5 một chút, phần review rất nhỏ</h3>
+            <p>Sau khi đưa độ mới vào công thức, H0 thành mô hình tốt nhất, hơn B5 khoảng 0,0007. Phân tích tách lớp cho thấy phần lớn mức hơn đó đến từ đồ thị. Review theo khía cạnh chỉ thêm khoảng +0,0001, và kết luận thay đổi tuỳ cách làm thí nghiệm đối chứng. Cổng của TrustRec (T0) gần như đóng hẳn: mức tin vào review trung bình chỉ 0,2%. Nhãn từ AI và nhãn từ bộ từ điển đơn giản cho kết quả như nhau.</p>
+            <span class="figure-line">H0 có review − H0 không review = +0,00011 [+0,00001; +0,00022]</span>
+          </div></li>
+        </ol>
+
+        <div class="prose">
+          <p>Giả thuyết ban đầu là review hữu ích nhất cho người ít lịch sử. Số liệu ủng hộ điều đó ở mức rất nhẹ: thành phần review giúp nhóm có 1–5 lượt thích và hơi kéo xuống nhóm có trên 5 lượt.</p>
+        </div>
+        <div class="data-table tbl-wrap">
+          <table>
+            <thead><tr><th>Nhóm người dùng (số lượt thích trước T1)</th><th class="n">Số người</th><th class="n">H0 không review</th><th class="n">H0 có review</th></tr></thead>
+            <tbody>
+              <tr><td>Chưa có lịch sử</td><td class="n">53.413</td><td class="n">0,1139</td><td class="n">0,1139</td></tr>
+              <tr><td>1–2</td><td class="n">5.464</td><td class="n">0,0723</td><td class="n">0,0733</td></tr>
+              <tr><td>3–5</td><td class="n">1.546</td><td class="n">0,0495</td><td class="n">0,0510</td></tr>
+              <tr><td>Trên 5</td><td class="n">1.352</td><td class="n">0,0422</td><td class="n">0,0414</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small" style="max-width:76ch">NDCG@10 theo nhóm. Người chưa có lịch sử nhận cùng danh sách “phổ biến gần đây” ở cả hai cấu hình, nên điểm bằng nhau. Đây là một lần chạy, một nguồn nhãn, chưa hiệu chỉnh cho việc so sánh nhiều lần trên cùng tập thi.</p>
+
+        <div class="verdict">
+          <h3>Kết luận trung thực</h3>
+          <p>Trên dữ liệu game Amazon, ý kiến theo khía cạnh chỉ cải thiện xếp hạng rất ít và chưa vững. Cơ chế cổng thích ứng chưa cho thấy giá trị đo được. Đây vẫn là một câu trả lời khoa học hợp lệ cho câu hỏi nghiên cứu. Giá trị chính của TrustRec lúc này nằm ở lời giải thích có trích dẫn kiểm chứng được, và ở cách đánh giá đủ cẩn thận để không tự lừa mình.</p>
+        </div>
+      </section>
+
+      <!-- ================= Ý NGHĨA ================= -->
+      <section id="y-nghia" aria-labelledby="h-ynghia">
+        <div class="sec-head">
+          <p class="eyebrow">Vì sao project này đáng làm</p>
+          <h2 id="h-ynghia">Ý nghĩa</h2>
+        </div>
+        <div class="meaning">
+          <div><h3>Với người dùng</h3><p>Biết vì sao một game được gợi ý, đọc được đoạn review gốc, thấy cả mặt trái, và tự chỉnh điều mình quan tâm để xem danh sách thay đổi.</p></div>
+          <div><h3>Với cách làm nghiên cứu</h3><p>Mốc thời gian chung, kiểm tra rò rỉ tự động, chỉ chỉnh tham số trên dữ liệu ôn thi, và ghi lại mã băm của dữ liệu, cấu hình, mô hình cho mọi lần chạy. Người khác có thể chạy lại và ra đúng con số.</p></div>
+          <div><h3>Bài học về baseline</h3><p>Kết quả “đẹp” đầu tiên (+0,0116) hoá ra đến từ độ mới. Chỉ một baseline đơn giản, đặt đúng chỗ, đã lật ngược kết luận. Mô hình phức tạp luôn cần đối thủ đơn giản mà mạnh.</p></div>
+          <div><h3>Với môn Web Mining</h3><p>Project nối năm mảng của môn học: khai phá ý kiến (opinion mining), phân tích liên kết (PageRank), hệ gợi ý, học máy và trực quan hoá dữ liệu.</p></div>
+        </div>
+      </section>
+
+      <!-- ================= GIỚI HẠN ================= -->
+      <section id="gioi-han" aria-labelledby="h-gioihan">
+        <div class="sec-head">
+          <p class="eyebrow">Ranh giới của các tuyên bố</p>
+          <h2 id="h-gioihan">Những điều TrustRec không tuyên bố</h2>
+        </div>
+        <ul class="nots">
+          <li>Không phát hiện review giả. Điểm PageRank cao chỉ thể hiện vị trí trong đồ thị, không chứng minh người viết trung thực.</li>
+          <li>Điểm gợi ý không phải xác suất bạn sẽ mua hay sẽ thích game.</li>
+          <li>Nhãn do AI gán không phải nhãn do con người chấm, nên không được gọi là “đáp án chuẩn”.</li>
+          <li>Kết quả đo trên dữ liệu lịch sử, không chứng minh tăng doanh số hay tăng niềm tin ngoài đời thực.</li>
+          <li>Không nói “đa số người dùng đồng ý” khi không có tử số, mẫu số và khoảng thời gian rõ ràng.</li>
+          <li>Game hoàn toàn mới, chưa có lượt đánh giá hay review nào, chưa được hệ thống hỗ trợ.</li>
+        </ul>
+      </section>
+
+      <!-- ================= HIỆN TRẠNG ================= -->
+      <section id="hien-trang" aria-labelledby="h-hientrang">
+        <div class="sec-head">
+          <p class="eyebrow">Tính đến 05/11/2026</p>
+          <h2 id="h-hientrang">Hiện trạng project</h2>
+        </div>
+        <div class="status">
+          <div class="status-row"><span class="pill done">Xong</span><p>Bộ dữ liệu đầy đủ chia theo thời gian, kèm kiểm tra rò rỉ tự động.</p></div>
+          <div class="status-row"><span class="pill done">Xong</span><p>Gán nhãn khía cạnh cho toàn bộ 1,5 triệu review bằng AI, và bằng bộ từ điển để so sánh.</p></div>
+          <div class="status-row"><span class="pill done">Xong</span><p>Các baseline B0, B1, B2, B3, B5 và hai mô hình H0, T0, đã chọn cấu hình và chấm trên tập thi thật.</p></div>
+          <div class="status-row"><span class="pill done">Xong</span><p>Cơ chế viết lời giải thích, từ chối khi thiếu bằng chứng và phép thử faithfulness (đã chạy trên dữ liệu mẫu).</p></div>
+          <div class="status-row"><span class="pill done">Xong</span><p>Bản demo Streamlit: chọn một người ít lịch sử, so sánh “phổ biến nhất” với TrustRec, mở bằng chứng, chỉnh ưu tiên khía cạnh. Hiện demo chạy trên một bộ dữ liệu mẫu tự tạo, chưa dùng số liệu thật.</p></div>
+          <div class="status-row"><span class="pill done">Xong</span><p>Bộ đóng gói báo cáo: mỗi tuyên bố trỏ tới lần chạy, lệnh và mã băm tạo ra nó.</p></div>
+          <div class="status-row"><span class="pill doing">Đang làm</span><p>Đánh giá đầy đủ cho mọi mô hình và mọi seed. Đã có thí nghiệm bỏ thành phần review; còn các thí nghiệm tách lớp khác.</p></div>
+          <div class="status-row"><span class="pill todo">Chưa làm</span><p>B4 (chỉ dùng review), thử độ bền với dữ liệu nhiễu (nhân bản review, đảo cảm xúc), và chạy demo cùng phép thử giải thích trên dữ liệu thật.</p></div>
+        </div>
+      </section>
+
+      <!-- ================= THUẬT NGỮ ================= -->
+      <section id="thuat-ngu" aria-labelledby="h-thuatngu">
+        <div class="sec-head">
+          <p class="eyebrow">Tra cứu nhanh</p>
+          <h2 id="h-thuatngu">Thuật ngữ</h2>
+        </div>
+        <dl class="glossary">
+          <div><dt>Gợi ý top K <span>top-K recommendation</span></dt><dd>Trả về K món có điểm cao nhất cho mỗi người, ở đây K bằng 5, 10 hoặc 20.</dd></div>
+          <div><dt>Khía cạnh <span>aspect</span></dt><dd>Một thuộc tính của game như gameplay, story hay performance.</dd></div>
+          <div><dt>Cảm xúc <span>sentiment</span></dt><dd>Chiều ý kiến về một khía cạnh: tích cực, tiêu cực hoặc trung lập.</dd></div>
+          <div><dt>Bằng chứng <span>evidence</span></dt><dd>Đoạn trích nguyên văn từ review, dùng để chống lưng cho một lý do.</dd></div>
+          <div><dt>LLM</dt><dd>Mô hình ngôn ngữ lớn, loại AI đọc và viết văn bản. Ở đây dùng để gán nhãn khía cạnh và cảm xúc.</dd></div>
+          <div><dt>Ảnh chụp dữ liệu <span>snapshot</span></dt><dd>Một phiên bản cố định của dữ liệu, gắn với mốc thời gian và mã băm.</dd></div>
+          <div><dt>Mốc thời gian <span>cutoff · T0, T1</span></dt><dd>Ranh giới: chỉ dữ liệu trước mốc mới được dùng để dự đoán.</dd></div>
+          <div><dt>Rò rỉ dữ liệu <span>leakage</span></dt><dd>Thông tin tương lai hoặc thông tin của đề thi lọt vào lúc dự đoán.</dd></div>
+          <div><dt>Cold start</dt><dd>Gợi ý cho người dùng hoặc sản phẩm gần như chưa có lịch sử.</dd></div>
+          <div><dt>Lọc cộng tác <span>collaborative filtering</span></dt><dd>Gợi ý dựa trên hành vi của những người có gu tương tự.</dd></div>
+          <div><dt>BPR MF</dt><dd>Phương pháp học vector “gu” ẩn cho người và game, tối ưu để xếp game được thích lên trên.</dd></div>
+          <div><dt>Item kNN</dt><dd>Gợi ý game giống những game bạn đã thích, dựa trên việc cùng được một nhóm người thích.</dd></div>
+          <div><dt>Personalized PageRank</dt><dd>Mô phỏng đi dạo ngẫu nhiên trên đồ thị người và game, thường xuyên quay về điểm xuất phát là bạn. Nơi được ghé nhiều là gợi ý tốt.</dd></div>
+          <div><dt>Hybrid</dt><dd>Mô hình kết hợp nhiều nguồn tín hiệu thành một điểm.</dd></div>
+          <div><dt>Cổng thích ứng <span>adaptive gate</span></dt><dd>Phần của TrustRec tự quyết định nên tin review bao nhiêu cho từng cặp người và game.</dd></div>
+          <div><dt>Baseline</dt><dd>Mô hình đối chứng, thường đơn giản, dùng để biết mô hình mới có thật sự tốt hơn không.</dd></div>
+          <div><dt>Ablation</dt><dd>Thí nghiệm bỏ đi một thành phần để đo xem thành phần đó đóng góp bao nhiêu.</dd></div>
+          <div><dt>Validation và test</dt><dd>Dữ liệu “ôn thi” dùng để chọn cấu hình, và dữ liệu “thi thật” chỉ dùng một lần để chấm cuối.</dd></div>
+          <div><dt>NDCG@10</dt><dd>Điểm từ 0 đến 1, thưởng nhiều khi game đúng nằm ở vị trí cao trong top 10.</dd></div>
+          <div><dt>Recall@10</dt><dd>Tỉ lệ game người dùng thật sự thích lọt được vào top 10.</dd></div>
+          <div><dt>Bootstrap, khoảng tin cậy</dt><dd>Lấy mẫu lại nhiều lần để ước lượng sai số. Khoảng 95% không chứa 0 thì chênh lệch đáng tin.</dd></div>
+          <div><dt>Seed</dt><dd>Giá trị khởi tạo ngẫu nhiên. Cố định seed để kết quả chạy lại được y hệt.</dd></div>
+          <div><dt>Faithfulness</dt><dd>Mức lời giải thích phản ánh đúng điều thực sự làm nên điểm số.</dd></div>
+          <div><dt>Từ chối giải thích <span>abstention</span></dt><dd>Hệ thống không đưa ra lý do mạnh khi bằng chứng chưa đủ.</dd></div>
+        </dl>
+      </section>
+    </main>
+  </div>
+</div>
+
+<footer class="band">
+  <div class="wrap">
+    <p>Tổng hợp từ tài liệu thiết kế, các quyết định kiến trúc (ADR) và báo cáo đánh giá trong repo TrustRec. Số liệu kết quả lấy từ các lần chạy đã ghi nhận đến ngày 05/11/2026. Review ví dụ ở phần “Cho AI đọc review” là review thật trong dữ liệu; các game, câu trích và số liệu trong thẻ mẫu và phần “Tự tay thử” là giả định.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var fmt = function (x, d) {
+    return x.toFixed(d).replace(".", ",");
+  };
+
+  /* ---------------- Playground ---------------- */
+  var ASPECTS = [
+    { id: "story", label: "story" },
+    { id: "gameplay", label: "gameplay" },
+    { id: "performance", label: "performance" },
+    { id: "multiplayer", label: "multiplayer" }
+  ];
+  var GAMES = [
+    {
+      name: "Star Harbor", base: 0.80, authors: 14,
+      dev: { story: 0.6, gameplay: 0.2, performance: -0.5, multiplayer: 0 },
+      sup: { story: 0.8, gameplay: 0.7, performance: 0.7, multiplayer: 0 },
+      quote: { story: "the story is engaging", gameplay: "combat feels great", performance: "keeps crashing after the patch" }
+    },
+    {
+      name: "Pixel Rally", base: 0.70, authors: 22,
+      dev: { story: -0.1, gameplay: 0.5, performance: 0.1, multiplayer: 0.6 },
+      sup: { story: 0.3, gameplay: 0.7, performance: 0.5, multiplayer: 0.8 },
+      quote: { gameplay: "tight, addictive races", multiplayer: "split-screen with friends is a blast", story: "there is barely any story" }
+    },
+    {
+      name: "Iron Circuit", base: 0.62, authors: 9,
+      dev: { story: 0, gameplay: 0.3, performance: 0.7, multiplayer: 0.2 },
+      sup: { story: 0, gameplay: 0.6, performance: 0.9, multiplayer: 0.4 },
+      quote: { performance: "runs at a locked 60 fps", gameplay: "every track is fun to master" }
+    },
+    {
+      name: "Moonlit Tales", base: 0.45, authors: 3,
+      dev: { story: 0.9, gameplay: 0.1, performance: 0.2, multiplayer: 0 },
+      sup: { story: 0.25, gameplay: 0.2, performance: 0.15, multiplayer: 0 },
+      quote: { story: "a beautiful, moving story" }
+    }
+  ];
+  var G_MAX = 0.75, KAPPA = 5, MIN_AUTHORS = 5, MIN_SUPPORT = 0.5;
+
+  var inputs = {};
+  ASPECTS.forEach(function (a) { inputs[a.id] = document.getElementById("w-" + a.id); });
+  var hist = document.getElementById("w-history");
+  var list = document.getElementById("results");
+  var readout = document.getElementById("gate-readout");
+  var baseOrder = GAMES.slice().sort(function (a, b) { return b.base - a.base; }).map(function (g) { return g.name; });
+
+  var items = {};
+  GAMES.forEach(function (g) {
+    var li = document.createElement("li");
+    li.className = "res";
+    li.innerHTML =
+      '<span class="res-rank"></span>' +
+      '<div class="res-body">' +
+        '<div class="res-head"><span class="res-name"></span><span class="move"></span></div>' +
+        '<div class="res-bar" aria-hidden="true"><span class="b"></span><span class="a"></span></div>' +
+        '<div class="res-nums"></div>' +
+        '<div class="res-why"></div>' +
+      '</div>';
+    li.querySelector(".res-name").textContent = g.name;
+    items[g.name] = li;
+    list.appendChild(li);
+  });
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+  }
+
+  function compute() {
+    var raw = ASPECTS.map(function (a) { return Number(inputs[a.id].value); });
+    var sum = raw.reduce(function (s, x) { return s + x; }, 0);
+    var w = {};
+    ASPECTS.forEach(function (a, k) { w[a.id] = sum > 0 ? raw[k] / sum : 1 / ASPECTS.length; });
+    var n = Number(hist.value);
+    var trust = KAPPA / (KAPPA + n);
+
+    var rows = GAMES.map(function (g) {
+      var A = 0, C = 0;
+      ASPECTS.forEach(function (a) { A += w[a.id] * g.dev[a.id]; C += w[a.id] * g.sup[a.id]; });
+      return { g: g, A: A, C: C };
+    });
+    var As = rows.map(function (r) { return r.A; });
+    var mn = Math.min.apply(null, As), mx = Math.max.apply(null, As);
+    rows.forEach(function (r) {
+      r.An = mx > mn ? (r.A - mn) / (mx - mn) : 0.5;
+      r.gate = G_MAX * trust * r.C;
+      r.basePart = (1 - r.gate) * r.g.base;
+      r.aspPart = r.gate * r.An;
+      r.score = r.basePart + r.aspPart;
+    });
+    rows.sort(function (a, b) { return b.score - a.score; });
+
+    ASPECTS.forEach(function (a) { document.getElementById("o-" + a.id).value = inputs[a.id].value; });
+    document.getElementById("o-history").value = hist.value;
+
+    readout.innerHTML = "Với <b>" + n + "</b> game đã chấm, cổng cho review tối đa <b>" + Math.round(G_MAX * trust * 100) +
+      "%</b> trọng số. " + (n <= 3 ? "Bạn còn ít lịch sử, nên review được nghe nhiều." : n >= 15 ? "Bạn có nhiều lịch sử, nên hệ thống dựa chủ yếu vào lọc cộng tác và đồ thị." : "Mức trung bình.");
+
+    rows.forEach(function (r, idx) {
+      var li = items[r.g.name];
+      list.appendChild(li);
+      li.querySelector(".res-rank").textContent = "#" + (idx + 1);
+      var before = baseOrder.indexOf(r.g.name);
+      var mv = li.querySelector(".move");
+      var d = before - idx;
+      mv.className = "move" + (d > 0 ? " up" : d < 0 ? " down" : "");
+      mv.textContent = d > 0 ? "▲ lên " + d + " hạng" : d < 0 ? "▼ xuống " + (-d) + " hạng" : "giữ nguyên";
+      li.querySelector(".b").style.width = (r.basePart * 100).toFixed(1) + "%";
+      li.querySelector(".a").style.width = (r.aspPart * 100).toFixed(1) + "%";
+      li.querySelector(".res-nums").textContent = "điểm " + fmt(r.score, 2) + " = " + fmt(r.basePart, 2) + " + " + fmt(r.aspPart, 2) + " · tin review " + Math.round(r.gate * 100) + "%";
+
+      var best = null, bestV = 0, worst = null, worstV = 0;
+      ASPECTS.forEach(function (a) {
+        var c = w[a.id] * r.g.dev[a.id];
+        if (c > bestV && r.g.sup[a.id] >= MIN_SUPPORT) { bestV = c; best = a; }
+        if (c < worstV && w[a.id] >= 0.15) { worstV = c; worst = a; }
+      });
+      var html = "";
+      if (r.g.authors < MIN_AUTHORS) {
+        html += '<span class="st weak">CHƯA ĐỦ BẰNG CHỨNG</span>';
+        html += "<span>Chỉ " + r.g.authors + " tác giả viết về game này, chưa đủ để khẳng định theo khía cạnh. Thứ hạng chủ yếu đến từ lọc cộng tác và đồ thị.</span>";
+      } else if (best) {
+        html += '<span class="st ok">ĐỦ BẰNG CHỨNG · ' + r.g.authors + " TÁC GIẢ</span>";
+        html += "<span>Bạn ưu tiên <b>" + best.label + "</b>; review trước ngày gợi ý khen " + best.label + " của game này hơn mức trung bình: <q lang=\"en\">" + esc(r.g.quote[best.id] || "") + "</q></span>";
+        if (worst) {
+          html += "<span>Cần cân nhắc: <b>" + worst.label + "</b> bị chê" + (r.g.quote[worst.id] ? ': <q lang="en">' + esc(r.g.quote[worst.id]) + "</q>" : "") + "</span>";
+        }
+      } else {
+        html += '<span class="st weak">KHÔNG CÓ LÝ DO THEO KHÍA CẠNH</span>';
+        html += "<span>Không khía cạnh nào bạn ưu tiên được khen rõ rệt. Game đứng ở đây nhờ lọc cộng tác và đồ thị." +
+          (worst ? " Lưu ý: <b>" + worst.label + "</b> bị chê." : "") + "</span>";
+      }
+      li.querySelector(".res-why").innerHTML = html;
+    });
+  }
+
+  ASPECTS.forEach(function (a) { inputs[a.id].addEventListener("input", compute); });
+  hist.addEventListener("input", compute);
+  document.querySelectorAll(".presets button").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var v = btn.getAttribute("data-preset").split(",").map(Number);
+      ASPECTS.forEach(function (a, k) { inputs[a.id].value = v[k]; });
+      hist.value = v[4];
+      compute();
+    });
+  });
+  compute();
+
+  /* ---------------- Results chart ---------------- */
+  var MAX = 0.12;
+  var DATA = [
+    { group: "Giai đoạn 1 · chưa có tín hiệu độ mới" },
+    { code: "B1", name: "Item kNN", ndcg: 0.0256, recall: 0.0466, tip: "Thấp hơn B0: −0,0012 [−0,0016; −0,0008]." },
+    { code: "B0", name: "Phổ biến nhất", ndcg: 0.0268, recall: 0.0492, tip: "Mốc so sánh của giai đoạn 1. Khoảng tin cậy 95%: [0,0259; 0,0277]." },
+    { code: "B2", name: "BPR MF", sub: "trung bình 3 seed", ndcg: 0.0268, recall: 0.0487, tip: "Gần như bằng B0. Chênh lệch giữa các seed (0,0004) lớn hơn chênh lệch với B0." },
+    { code: "B3", name: "Personalized PageRank", ndcg: 0.0284, recall: 0.0512, tip: "Hơn B0: +0,0015 [+0,0012; +0,0020]. Baseline cá nhân hoá duy nhất thắng B0." },
+    { code: "T0", name: "TrustRec bản đầu", ours: true, ndcg: 0.0362, recall: 0.0506, tip: "Hơn B0: +0,0094 [+0,0085; +0,0104], nhưng lợi thế đến từ độ mới vô tình, không từ review." },
+    { code: "H0", name: "Hybrid cố định bản đầu", ours: true, ndcg: 0.0384, recall: 0.0575, tip: "Hơn B0: +0,0116 [+0,0107; +0,0125]. Trên dữ liệu ôn thi lại thua B0, nên nhóm điều tra thêm." },
+    { group: "Giai đoạn 2 · thêm độ mới (60 ngày)" },
+    { code: "B5", name: "Phổ biến gần đây", ndcg: 0.1064, recall: 0.1557, tip: "Gấp khoảng 4 lần B0. Khoảng tin cậy 95%: [0,1042; 0,1086]. Mốc so sánh của giai đoạn 2." },
+    { code: "T0", name: "TrustRec + độ mới", ours: true, ndcg: 0.1068, recall: 0.1569, tip: "Hơn B5: +0,0004 [+0,0003; +0,0005]. Bằng đúng bản bỏ review: cổng gần như đóng." },
+    { code: "H0", name: "Hybrid cố định + độ mới", ours: true, ndcg: 0.1071, recall: 0.1574, tip: "Mô hình tốt nhất. Hơn B5: +0,0007 [+0,0005; +0,0009]; phần review chỉ khoảng +0,0001." }
+  ];
+
+  var bars = document.getElementById("bars");
+  var tip = document.getElementById("tip");
+  var chart = document.getElementById("chart");
+  var tbody = document.getElementById("chart-table");
+
+  DATA.forEach(function (d) {
+    if (d.group) {
+      var g = document.createElement("div");
+      g.className = "bars-group";
+      g.setAttribute("role", "presentation");
+      g.innerHTML = "<span>" + d.group + "</span>";
+      bars.appendChild(g);
+      var tr0 = document.createElement("tr");
+      tr0.innerHTML = '<td colspan="4" class="mono" style="color:var(--muted)">' + d.group + "</td>";
+      tbody.appendChild(tr0);
+      return;
+    }
+    var row = document.createElement("div");
+    row.className = "bars-row" + (d.ours ? " ours" : "");
+    row.setAttribute("role", "listitem");
+    row.tabIndex = 0;
+    var label = d.code + " " + d.name + (d.sub ? " (" + d.sub + ")" : "");
+    row.setAttribute("aria-label", label + ": NDCG@10 " + fmt(d.ndcg, 4) + ". " + d.tip);
+    row.innerHTML =
+      '<div class="lbl"><b>' + d.code + "</b>" + d.name + (d.sub ? "<small>" + d.sub + "</small>" : "") + "</div>" +
+      '<div class="track"><div class="fill" style="width:' + (d.ndcg / MAX * 100).toFixed(2) + '%"></div></div>' +
+      '<div class="val">' + fmt(d.ndcg, 4) + "</div>";
+    bars.appendChild(row);
+
+    function show() {
+      tip.innerHTML = "<b>" + esc(label) + "</b><br>NDCG@10 <b>" + fmt(d.ndcg, 4) + "</b>" +
+        (d.recall != null ? " · Recall@10 <b>" + fmt(d.recall, 4) + "</b>" : "") + "<br>" + d.tip;
+      tip.hidden = false;
+      var cr = chart.getBoundingClientRect();
+      var rr = row.getBoundingClientRect();
+      var top = rr.bottom - cr.top + 4;
+      if (top + tip.offsetHeight > chart.offsetHeight - 8) top = rr.top - cr.top - tip.offsetHeight - 4;
+      var left = Math.min(Math.max(12, rr.left - cr.left + rr.width * 0.25), cr.width - tip.offsetWidth - 12);
+      tip.style.top = top + "px";
+      tip.style.left = left + "px";
+    }
+    function hide() { tip.hidden = true; }
+    row.addEventListener("mouseenter", show);
+    row.addEventListener("mouseleave", hide);
+    row.addEventListener("focus", show);
+    row.addEventListener("blur", hide);
+
+    var tr = document.createElement("tr");
+    tr.innerHTML = "<td>" + esc(label) + '</td><td class="n">' + fmt(d.ndcg, 4) + '</td><td class="n">' +
+      (d.recall != null ? fmt(d.recall, 4) : "—") + "</td><td>" + d.tip + "</td>";
+    tbody.appendChild(tr);
+  });
+
+  var axisRow = document.createElement("div");
+  axisRow.className = "bars-axis";
+  axisRow.setAttribute("aria-hidden", "true");
+  var ticks = "";
+  for (var t = 0; t <= 6; t++) {
+    ticks += '<span style="left:' + (t / 6 * 100).toFixed(3) + '%">' + fmt(t * 0.02, 2) + "</span>";
+  }
+  axisRow.innerHTML = '<div></div><div class="axis">' + ticks + '</div><div class="axis-name">NDCG@10</div>';
+  bars.appendChild(axisRow);
+
+  /* ---------------- TOC highlight ---------------- */
+  var links = Array.prototype.slice.call(document.querySelectorAll(".toc a"));
+  if ("IntersectionObserver" in window) {
+    var map = {};
+    links.forEach(function (a) { map[a.getAttribute("href").slice(1)] = a; });
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          links.forEach(function (a) { a.removeAttribute("aria-current"); });
+          var a = map[e.target.id];
+          if (a) a.setAttribute("aria-current", "true");
+        }
+      });
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    document.querySelectorAll("main > section").forEach(function (s) { obs.observe(s); });
+  }
+})();
+</script>
+</body>
+</html>

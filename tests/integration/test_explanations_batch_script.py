@@ -125,6 +125,9 @@ def test_explanations_follow_the_saved_ranking_and_report_coverage(tmp_path: Pat
     assert sum(metrics["status_share"].values()) == pytest.approx(1.0)
     assert "correctness_pending" in metrics
     assert len(metrics["threshold_sensitivity"]) == 9
+    faith = metrics["faithfulness"]["counts"]["all"]
+    assert faith["not_applicable_aspect_not_in_score"] > 0
+    assert faith.get("tested", 0) > 0
     rows = [
         json.loads(line)
         for line in (tmp_path / "explanations" / "recommendations.jsonl").read_text().splitlines()
@@ -134,6 +137,8 @@ def test_explanations_follow_the_saved_ranking_and_report_coverage(tmp_path: Pat
     assert cold and warm
     assert all(row["score_parts"].keys() == {"recent_popularity"} for row in cold)
     assert all(c["score_contribution"] == 0.0 for row in cold for c in row["claims"])
+    tested = [row for row in warm if row["faithfulness"] and "faithful" in row["faithfulness"]]
+    assert tested and all("random_score_delta" in row["faithfulness"] for row in tested)
     assert all(row["score"] == pytest.approx(sum(row["score_parts"].values())) for row in warm)
     claims = [
         json.loads(line)
@@ -176,3 +181,78 @@ def test_explanations_refuse_a_ranking_they_do_not_reproduce(tmp_path: Path) -> 
             k=5,
             **COMPONENTS,
         )
+
+
+def test_judge_audits_a_stratified_sample_without_showing_labels(tmp_path: Path) -> None:
+    from scripts.run_explanation_judge import run_judge
+
+    from trustrec.explanations.judge import JUDGE_PROMPT
+    from trustrec.nlp.llm_labeler import ChatClient
+
+    manifest, evidence = _snapshot(tmp_path)
+    ranking = tmp_path / "h0.jsonl"
+    run_hybrids(
+        manifest,
+        cutoff_name="t1",
+        evidence_path=evidence,
+        configs=[H0],
+        output_paths=[ranking],
+        k=10,
+        scorer_settings=SETTINGS,
+        **COMPONENTS,
+    )
+    run_explanations(
+        manifest,
+        evidence_path=evidence,
+        ranking_path=ranking,
+        config=H0,
+        scorer_settings=SETTINGS,
+        output_dir=tmp_path / "explanations",
+        k=5,
+        thresholds=ClaimThresholds(min_distinct_authors=2),
+        **COMPONENTS,
+    )
+    seen = []
+
+    def post(*args, **kwargs):
+        body = kwargs["json"]
+        assert body["messages"][0]["content"] == JUDGE_PROMPT
+        message = json.loads(body["messages"][1]["content"])
+        seen.append(message)
+        answer = {
+            "passages": [
+                {"id": p["id"], "about_aspect": True, "polarity": "positive", "about_product": True}
+                for p in message["passages"]
+            ],
+            "claim_supported": "yes",
+        }
+
+        class Response:
+            status_code = 200
+
+            def json(self):
+                return {"choices": [{"message": {"content": json.dumps(answer)}}], "usage": {}}
+
+        return Response()
+
+    result = run_judge(
+        manifest,
+        explanations_dir=tmp_path / "explanations",
+        output_path=tmp_path / "judge.json",
+        client=ChatClient(
+            api_key="k",
+            model_id="judge",
+            post=post,
+            reasoning_effort=None,
+            system_prompt=JUDGE_PROMPT,
+        ),
+        per_stratum=3,
+        workers=2,
+    )
+
+    summary = result["summary"]["all_direction_strata"]
+    assert result["traceability"]["passages"] == result["traceability"]["traceable"] > 0
+    assert summary["judged"] == summary["claims"] == len(seen) > 0
+    assert summary["claim_supported"]["yes"] == 1.0
+    assert all("sentiment" not in passage for message in seen for passage in message["passages"])
+    assert result["judge"]["prompt_version"] == "t7.3-claim-judge-v1"

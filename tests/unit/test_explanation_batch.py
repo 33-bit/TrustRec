@@ -142,3 +142,75 @@ def test_claim_direction_follows_the_positive_share(positive, negative, directio
         else "positive"
     )
     assert sides[0] == lead
+
+
+def _story_rows() -> list[dict]:
+    rows = []
+    for index in range(30):
+        aspect = "story" if index < 12 else "graphics"
+        sentiment = "positive" if aspect == "story" or index % 2 else "negative"
+        rows.append(
+            {
+                "review_id": f"r{index}",
+                "item_id": "i0",
+                "author_id": f"u{index}",
+                "timestamp": index,
+                "aspect": aspect,
+                "sentiment": sentiment,
+                "confidence": 1.0,
+            }
+        )
+    return rows
+
+
+def test_removing_positive_claim_evidence_lowers_the_score_more_than_random() -> None:
+    from trustrec.explanations.batch import faithfulness_row, removal_effect
+
+    aspects = ("story", "graphics")
+    effect = removal_effect(
+        "i0",
+        "story",
+        _story_rows(),
+        aspects=aspects,
+        prior_scores={"story": 0.0, "graphics": 0.0},
+        cutoff_timestamp=CUTOFF,
+    )
+    assert effect.cited_count == 12 and effect.random_count == 12
+    assert effect.cited[0] == pytest.approx(0.0)
+    assert effect.original[0] > 0
+    again = removal_effect(
+        "i0",
+        "story",
+        _story_rows(),
+        aspects=aspects,
+        prior_scores={"story": 0.0, "graphics": 0.0},
+        cutoff_timestamp=CUTOFF,
+    )
+    assert again == effect
+
+    row = faithfulness_row(
+        effect,
+        [0.8, 0.2],
+        aspect_weight=0.2,
+        aspect_min=-1.0,
+        aspect_max=1.0,
+        score=0.5,
+        next_score=0.49,
+        direction="positive",
+    )
+    assert row["score_delta"] < 0
+    assert row["faithful"] is True
+    assert row["moves_in_claimed_direction"] is True
+    assert row["leaves_top_k"] is True
+    flat = faithfulness_row(
+        effect,
+        [0.8, 0.2],
+        aspect_weight=0.2,
+        aspect_min=0.0,
+        aspect_max=0.0,
+        score=0.5,
+        next_score=None,
+        direction="conflicting",
+    )
+    assert flat["score_delta"] == 0.0 and flat["faithful"] is False
+    assert flat["moves_in_claimed_direction"] is None and flat["leaves_top_k"] is None

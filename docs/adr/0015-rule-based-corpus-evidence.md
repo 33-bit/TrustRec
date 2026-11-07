@@ -1,6 +1,6 @@
 # ADR-0015: Rule-based evidence for the full review corpus
 
-Status: Proposed. Date: 2026-11-02.
+Status: Superseded by [ADR-0018](0018-explanation-first-research-focus.md), which uses LLM evidence for explanations. Date: 2026-11-02.
 
 ## Context
 

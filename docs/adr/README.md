@@ -8,7 +8,7 @@ ADR-0017 amends ADR-0009: H0 and T0 get a recency term, a cold-start fallback to
 
 ADR-0016 adds B5, a recent-popularity baseline, to separate recency from aspect evidence.
 
-ADR-0015 proposes rule-based evidence for the full corpus and leaves the LLM labeler choice open.
+ADR-0015 proposed rule-based evidence for the full corpus. ADR-0018 supersedes it: explanations use LLM evidence, and the dictionary labels remain only as a baseline.
 
 ADR-0014 records the sparse ranker and compact candidate design used for full-snapshot runs.
 

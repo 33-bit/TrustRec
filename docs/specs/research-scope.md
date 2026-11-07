@@ -10,7 +10,6 @@ Given history before cutoff `τ`, rank known products that the user did not revi
 | --- | --- | --- |
 | RQ4 | Do claims match their sources and score contributions? | LLM explanation audit and evidence-removal test against random removal |
 | RQ5 | How many recommendations can carry a supported claim, and how often does the system abstain? | Coverage and abstention for the explained top-K, grouped by history, item popularity, and item age |
-| RQ6 | Does the evidence source change explanation quality? | LLM evidence versus dictionary evidence on the same recommendations: coverage, audit results, and faithfulness |
 
 ## Accuracy guardrail
 
@@ -29,5 +28,7 @@ These questions were answered in [T6.4](../tasks/t6_4-baseline-results.md). Keep
 | RQ3 | Do evidence weights reduce changes from duplicates and polarity noise? | Not tested at full scale. It is lower priority after ADR-0018. |
 
 Video Games is the primary domain after T1.2 profiling. Core work includes top-K ranking at K ∈ {5, 10, 20}, BPR MF, PPR, recent popularity, and aspect sentiment. It also includes evidence aggregation, explanation generation, the faithfulness test, and a Streamlit demo.
+
+Explanations use LLM evidence only. Comparing explanation quality across evidence sources, such as the T2.3 dictionary labels, is an extension.
 
 Node2vec, NCF, stronger NLP, diversification, onboarding, and item cold-start are extensions. Cold-start means that an item has no past interactions. Extensions cannot replace core baselines or the locked temporal evaluation.

@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .claims import ClaimThresholds, select_explanation
-from .evidence import AggregatedEvidence
+from .evidence import AggregatedEvidence, aggregate_evidence
 
 DISPLAY_EVIDENCE = 3
 
@@ -194,3 +194,124 @@ def explain_with_templates(
     else:
         status = "insufficient_support"
     return {"status": status, "claims": claims, "aspect_in_score": aspect_in_score}
+
+
+@dataclass(frozen=True)
+class RemovalEffect:
+    """Item aspect deviations before and after removing one claim's evidence.
+
+    ``cited`` removes every review that mentions the claim aspect for the item.
+    ``random`` removes the same number of the item's other evidence reviews,
+    drawn with a fixed seed. When the item has fewer other reviews, all of them
+    are removed and ``random_pool_short`` is set.
+    """
+
+    item_id: str
+    aspect: str
+    original: tuple[float, ...]
+    cited: tuple[float, ...]
+    random: tuple[float, ...]
+    cited_count: int
+    random_count: int
+    random_pool_short: bool
+
+
+def removal_effect(
+    item_id: str,
+    aspect: str,
+    evidence_rows: Sequence[Mapping[str, Any]],
+    *,
+    aspects: Sequence[str],
+    prior_scores: Mapping[str, float],
+    cutoff_timestamp: Any,
+    shrinkage_lambda: float = 5.0,
+    seed: int = 7,
+) -> RemovalEffect:
+    """Recompute the item's aspect deviations without the cited or random reviews."""
+
+    import random
+
+    from trustrec.recommenders.contracts import stable_model_hash
+
+    rows = [row for row in evidence_rows if row["item_id"] == item_id]
+    cited = {row["review_id"] for row in rows if row["aspect"] == aspect}
+    if not cited:
+        raise ValueError(f"no evidence for {item_id} {aspect}")
+    pool = sorted({row["review_id"] for row in rows} - cited)
+    generator = random.Random(int(stable_model_hash([seed, item_id, aspect])[:16], 16))
+    drawn = generator.sample(pool, min(len(cited), len(pool)))
+
+    def deviations(removed: set[str]) -> tuple[float, ...]:
+        profiles = aggregate_evidence(
+            [row for row in rows if row["review_id"] not in removed],
+            cutoff_timestamp=cutoff_timestamp,
+            prior_scores=prior_scores,
+            shrinkage_lambda=shrinkage_lambda,
+            items=[item_id],
+            aspects=aspects,
+        )
+        return tuple(
+            profiles[(item_id, name)].score - profiles[(item_id, name)].prior_score
+            for name in aspects
+        )
+
+    return RemovalEffect(
+        item_id=item_id,
+        aspect=aspect,
+        original=deviations(set()),
+        cited=deviations(cited),
+        random=deviations(set(drawn)),
+        cited_count=len(cited),
+        random_count=len(drawn),
+        random_pool_short=len(pool) < len(cited),
+    )
+
+
+def faithfulness_row(
+    effect: RemovalEffect,
+    weights: Sequence[float],
+    *,
+    aspect_weight: float,
+    aspect_min: float,
+    aspect_max: float,
+    score: float,
+    next_score: float | None,
+    direction: str,
+    min_effect: float = 1e-12,
+) -> dict[str, Any]:
+    """Score change from removing cited versus random evidence, normalization fixed.
+
+    The aspect score is ``sum_a w_ua * deviation_ia``. Its H0 part uses the
+    user's candidate minimum and maximum from before the removal.
+    """
+
+    def local(deviation: Sequence[float]) -> float:
+        return float(sum(w * d for w, d in zip(weights, deviation, strict=True)))
+
+    span = aspect_max - aspect_min
+
+    def part(value: float) -> float:
+        return aspect_weight * ((value - aspect_min) / span if span > 0 else 0.5)
+
+    original = local(effect.original)
+    cited = local(effect.cited)
+    drawn = local(effect.random)
+    cited_delta = part(cited) - part(original)
+    random_delta = part(drawn) - part(original)
+    expected_sign = {"positive": -1.0, "negative": 1.0}.get(direction)
+    return {
+        "aspect": effect.aspect,
+        "cited_count": effect.cited_count,
+        "random_count": effect.random_count,
+        "random_pool_short": effect.random_pool_short,
+        "local_aspect_delta": cited - original,
+        "random_local_aspect_delta": drawn - original,
+        "score_delta": cited_delta,
+        "random_score_delta": random_delta,
+        "faithful": abs(cited_delta) > min_effect and abs(cited_delta) > abs(random_delta),
+        "moves_in_claimed_direction": None
+        if expected_sign is None
+        else cited_delta * expected_sign > min_effect,
+        "leaves_top_k": None if next_score is None else score + cited_delta < next_score,
+        "random_leaves_top_k": None if next_score is None else score + random_delta < next_score,
+    }

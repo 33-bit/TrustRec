@@ -25,7 +25,12 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
-from trustrec.explanations.batch import build_claim_templates, explain_with_templates
+from trustrec.explanations.batch import (
+    build_claim_templates,
+    explain_with_templates,
+    faithfulness_row,
+    removal_effect,
+)
 from trustrec.explanations.claims import ClaimThresholds
 from trustrec.explanations.evidence import aggregate_evidence
 from trustrec.recommenders.contracts import stable_model_hash, timestamp_value
@@ -110,7 +115,9 @@ def _score_user(user_id: str) -> dict[str, Any]:
         }
     parts = scorer.components(user_id)
     total, _ = scorer.totals(parts, config)
-    order = top_k_order(total, parts.candidates, k)
+    extended = top_k_order(total, parts.candidates, k + 1)
+    order = extended[:k]
+    raw_aspect = scorer.aspect_model.scores(matrix.user_index.get(user_id))[0][parts.candidates]
     weighted = {
         "mf": config.mf_weight * parts.mf,
         "graph": config.graph_weight * parts.graph,
@@ -126,6 +133,9 @@ def _score_user(user_id: str) -> dict[str, Any]:
         ],
         "aspect_in_score": config.aspect_weight > 0,
         "fallback_reason": None,
+        "aspect_min": float(raw_aspect.min()) if raw_aspect.size else 0.0,
+        "aspect_max": float(raw_aspect.max()) if raw_aspect.size else 0.0,
+        "next_score": float(total[extended[k]]) if len(extended) > k else None,
     }
 
 
@@ -193,6 +203,87 @@ def _review_texts(
 
 def _share(counter: Counter[str], total: int) -> dict[str, float]:
     return {key: value / total for key, value in sorted(counter.items())} if total else {}
+
+
+def _attach_faithfulness(
+    rows: list[dict[str, Any]],
+    user_context: dict[str, tuple[dict[str, float], dict[str, Any]]],
+    evidence_by_item: dict[str, list[dict[str, Any]]],
+    *,
+    aspects: Sequence[str],
+    priors: dict[str, float],
+    cutoff: Any,
+    aspect_weight: float,
+) -> dict[str, Any]:
+    """Add a T7.2 removal test to each supported claim whose aspect is in the score."""
+
+    effects: dict[tuple[str, str], Any] = {}
+    counters: dict[str, Counter[str]] = defaultdict(Counter)
+    deltas: dict[str, list[float]] = defaultdict(list)
+    for row in rows:
+        claim = row["claims"][0] if row["claims"] else None
+        if claim is None or claim["status"] != "supported":
+            row["faithfulness"] = None
+            counters["all"]["no_supported_claim"] += 1
+            continue
+        if not row["aspect_in_score"]:
+            row["faithfulness"] = {"result": "not_applicable_aspect_not_in_score"}
+            counters["all"]["not_applicable_aspect_not_in_score"] += 1
+            continue
+        key = (row["item_id"], claim["aspect"])
+        if key not in effects:
+            effects[key] = removal_effect(
+                row["item_id"],
+                claim["aspect"],
+                evidence_by_item[row["item_id"]],
+                aspects=aspects,
+                prior_scores=priors,
+                cutoff_timestamp=cutoff,
+            )
+        weights, user = user_context[row["user_id"]]
+        test = faithfulness_row(
+            effects[key],
+            [weights[name] for name in aspects],
+            aspect_weight=aspect_weight,
+            aspect_min=user["aspect_min"],
+            aspect_max=user["aspect_max"],
+            score=row["score"],
+            next_score=user["next_score"],
+            direction=claim["sentiment_direction"],
+        )
+        row["faithfulness"] = {
+            "result": "faithful" if test["faithful"] else "not_faithful",
+            **test,
+        }
+        for group in (
+            "all",
+            f"direction:{claim['sentiment_direction']}",
+            f"slice:{row['history_slice']}",
+        ):
+            counters[group]["tested"] += 1
+            counters[group]["faithful"] += int(test["faithful"])
+            counters[group]["moves_in_claimed_direction"] += int(
+                bool(test["moves_in_claimed_direction"])
+            )
+            counters[group]["leaves_top_k"] += int(bool(test["leaves_top_k"]))
+            counters[group]["random_leaves_top_k"] += int(bool(test["random_leaves_top_k"]))
+            counters[group]["random_pool_short"] += int(test["random_pool_short"])
+        deltas["cited"].append(abs(test["score_delta"]))
+        deltas["random"].append(abs(test["random_score_delta"]))
+    summary: dict[str, Any] = {
+        "definition": (
+            "Remove every review that mentions the claim aspect for the item, or the same "
+            "number of the item's other evidence reviews (fixed seed); recompute the aspect "
+            "part with the user's candidate min-max fixed (ADR-0010)."
+        ),
+        "counts": {name: dict(counter) for name, counter in sorted(counters.items())},
+        "removal_pairs": len(effects),
+    }
+    for name, values in deltas.items():
+        ordered = sorted(values)
+        if ordered:
+            summary[f"median_abs_{name}_score_delta"] = ordered[len(ordered) // 2]
+    return summary
 
 
 def summarize(rows: Sequence[dict[str, Any]], templates: dict[tuple[str, str], Any]) -> dict:
@@ -363,50 +454,63 @@ def run_explanations(
     output_dir.mkdir(parents=True, exist_ok=True)
     recommendations_path = output_dir / "recommendations.jsonl"
     rows_out: list[dict[str, Any]] = []
-    with recommendations_path.open("w", encoding="utf-8") as handle:
-        for user in scored:
-            user_index = matrix.user_index.get(user["user_id"])
-            weights = dict(
-                zip(
-                    aspect_model.aspects,
-                    aspect_model.user_weights(user_index).tolist(),
-                    strict=True,
-                )
+    user_context: dict[str, tuple[Any, dict[str, Any]]] = {}
+    for user in scored:
+        user_index = matrix.user_index.get(user["user_id"])
+        weights = dict(
+            zip(
+                aspect_model.aspects,
+                aspect_model.user_weights(user_index).tolist(),
+                strict=True,
             )
-            history = int(matrix.history_indices(user["user_id"]).size)
-            for rank, (item_id, score, parts) in enumerate(
-                zip(user["item_ids"], user["scores"], user["score_parts"], strict=True), start=1
-            ):
-                item_templates = {
-                    aspect: templates[(item_id, aspect)]
-                    for aspect in aspect_model.aspects
-                    if (item_id, aspect) in templates
-                }
-                explanation = explain_with_templates(
-                    item_templates,
-                    weights,
-                    max_claims=max_claims,
-                    aspect_in_score=user["aspect_in_score"],
-                )
-                popularity = int(matrix.popularity[matrix.item_index[item_id]])
-                age_days = (cutoff_ms - first_ms[item_id]) / MS_PER_DAY
-                row = {
-                    "user_id": user["user_id"],
-                    "rank": rank,
-                    "item_id": item_id,
-                    "score": score,
-                    "score_parts": parts,
-                    "dominant_score_part": max(parts, key=lambda name: (abs(parts[name]), name)),
-                    "history_count": history,
-                    "history_slice": _history_slice(history),
-                    "item_popularity": popularity,
-                    "popularity_bucket": _bucket(popularity, POPULARITY_BUCKETS, ">=1000"),
-                    "item_age_days": age_days,
-                    "age_bucket": _bucket(age_days, AGE_BUCKETS, ">=3y"),
-                    **explanation,
-                }
-                rows_out.append(row)
-                handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+        )
+        history = int(matrix.history_indices(user["user_id"]).size)
+        for rank, (item_id, score, parts) in enumerate(
+            zip(user["item_ids"], user["scores"], user["score_parts"], strict=True), start=1
+        ):
+            item_templates = {
+                aspect: templates[(item_id, aspect)]
+                for aspect in aspect_model.aspects
+                if (item_id, aspect) in templates
+            }
+            explanation = explain_with_templates(
+                item_templates,
+                weights,
+                max_claims=max_claims,
+                aspect_in_score=user["aspect_in_score"],
+            )
+            popularity = int(matrix.popularity[matrix.item_index[item_id]])
+            age_days = (cutoff_ms - first_ms[item_id]) / MS_PER_DAY
+            row = {
+                "user_id": user["user_id"],
+                "rank": rank,
+                "item_id": item_id,
+                "score": score,
+                "score_parts": parts,
+                "dominant_score_part": max(parts, key=lambda name: (abs(parts[name]), name)),
+                "history_count": history,
+                "history_slice": _history_slice(history),
+                "item_popularity": popularity,
+                "popularity_bucket": _bucket(popularity, POPULARITY_BUCKETS, ">=1000"),
+                "item_age_days": age_days,
+                "age_bucket": _bucket(age_days, AGE_BUCKETS, ">=3y"),
+                **explanation,
+            }
+            rows_out.append(row)
+            user_context[user["user_id"]] = (weights, user)
+
+    faithfulness_counts = _attach_faithfulness(
+        rows_out,
+        user_context,
+        evidence_by_item,
+        aspects=aspect_model.aspects,
+        priors=priors,
+        cutoff=cutoff,
+        aspect_weight=config.aspect_weight,
+    )
+    with recommendations_path.open("w", encoding="utf-8") as handle:
+        for row in rows_out:
+            handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
     claims_path = output_dir / "claims.jsonl"
     with claims_path.open("w", encoding="utf-8") as handle:
         for key in sorted(templates):
@@ -448,7 +552,7 @@ def run_explanations(
             },
             "claims": {"path": str(claims_path), "sha256": _sha256_file(claims_path)},
         },
-        "metrics": summarize(rows_out, templates),
+        "metrics": {**summarize(rows_out, templates), "faithfulness": faithfulness_counts},
         "timing_ms": {"total": (time.perf_counter() - began) * 1000.0},
     }
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")

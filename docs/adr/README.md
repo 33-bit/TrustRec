@@ -2,6 +2,8 @@
 
 ADRs record decisions. Treat accepted ADRs as immutable. If a decision changes, add a new ADR and link the old and new records. Do not change old reasoning after an experiment uses it.
 
+ADR-0019 sets claim direction from the share of positive versus negative evidence, so popular items are not all labeled mixed.
+
 ADR-0018 makes evidence-grounded explanation the primary contribution and treats accuracy as a guardrail against B5.
 
 ADR-0017 amends ADR-0009: H0 and T0 get a recency term, a cold-start fallback to B5, and min-max normalization.

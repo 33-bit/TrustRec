@@ -219,6 +219,7 @@ class ChatClient:
     timeout: float = 180.0
     max_retries: int = 6
     post: Callable[..., Any] | None = None
+    system_prompt: str = SYSTEM_PROMPT
 
     def complete(self, user_content: str) -> tuple[str, dict[str, Any]]:
         import requests
@@ -229,7 +230,7 @@ class ChatClient:
             "temperature": 0,
             "response_format": {"type": "json_object"},
             "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": user_content},
             ],
         }

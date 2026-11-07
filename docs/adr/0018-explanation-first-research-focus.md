@@ -35,6 +35,12 @@ reviews, which is what ADR-0001 defines as TrustRec.
    accuracy) and do not hide them.
 5. The new primary questions are about explanations: coverage, abstention,
    faithfulness, and claim correctness (see the research scope).
+6. Explanations use only the curated LLM evidence (`curated/gpt-6-luna`).
+   The T2.3 dictionary labels stay in the code and in past results as an NLP
+   baseline and as the T6.4 robustness check. They are not used for new
+   explanation work. Comparing evidence sources for explanations is an
+   extension, not a primary question. The owner added this point on
+   2026-11-07, before any explanation run.
 
 ## Consequences
 

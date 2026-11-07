@@ -25,5 +25,4 @@
 | T7.1 | todo | Generate explanations for the ADR-0017 H0 top-K on the real `t1` snapshot | T6.4 | owner 2 | coverage and abstention (RQ5) are reported by history, popularity, and item age, with a manifest |
 | T7.2 | todo | Run the evidence-removal faithfulness test on real explanations | T7.1 | owner 2 | cited versus random removal (RQ4) is reported with intervals |
 | T7.3 | todo | Audit a sample of real explanations with the explanation audit contract | T7.1 | owner 2 | audit fields and LLM-judge provenance are recorded (RQ4) |
-| T7.4 | todo | Compare LLM and dictionary evidence for explanations | T7.1–T7.3 | owner 2 | RQ6 table with both sources on the same recommendations |
 | T7.5 | todo | Update the report bundle and demo to the real-data results | T6.4,T7.1 | owners 1, 3 | bundle claims follow ADR-0018 and the demo uses the real snapshot |

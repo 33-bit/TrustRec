@@ -13,7 +13,7 @@ Under [ADR-0018](../adr/0018-explanation-first-research-focus.md), explanation r
 - Faithfulness: the score change when cited evidence is removed, compared with a random removal of the same size.
 - Audit: item correctness, aspect correctness, sentiment direction, evidence traceability, and abstention. When an LLM judge is used, record its model and prompt, and report its results as LLM agreement with known limits.
 
-Group coverage and abstention by history slice, item popularity, and item age. Report LLM and dictionary evidence side by side when both exist.
+Group coverage and abstention by history slice, item popularity, and item age. Name the evidence source, which is the curated LLM labels under ADR-0018.
 
 ## Accuracy guardrail
 

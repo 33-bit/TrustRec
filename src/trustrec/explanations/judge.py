@@ -59,11 +59,14 @@ def sample_claims(
     *,
     per_stratum: int,
     seed: int = 7,
+    top_exposure: int = 0,
 ) -> list[dict[str, Any]]:
     """Sample supported (item, aspect) claims, stratified by direction.
 
     Each sampled claim keeps how many recommendations used it, so results can
-    be read per claim or weighted by recommendations.
+    be read per claim or weighted by recommendations. ``top_exposure`` adds the
+    claims shown most often as their own stratum, because a few claims can
+    cover most recommendations.
     """
 
     uses: dict[tuple[str, str], int] = {}
@@ -77,6 +80,17 @@ def sample_claims(
         strata.setdefault(templates[key]["sentiment_direction"], []).append(key)
     generator = random.Random(seed)
     sample = []
+    total_uses = sum(uses.values())
+    for key in sorted(uses, key=lambda key: (-uses[key], key))[:top_exposure]:
+        sample.append(
+            {
+                **templates[key],
+                "stratum": "top_exposure",
+                "stratum_size": len(uses),
+                "recommendation_uses": uses[key],
+                "exposure_share": uses[key] / total_uses,
+            }
+        )
     for direction in sorted(strata):
         keys = strata[direction]
         chosen = sorted(generator.sample(keys, min(per_stratum, len(keys))))
@@ -158,6 +172,31 @@ def parse_judgment(content: str, passage_count: int) -> dict[str, Any]:
     return {"passages": passages, "claim_supported": support}
 
 
+def derived_support(row: Mapping[str, Any]) -> bool | None:
+    """Claim support from the passage verdicts, ignoring the planned opposing passage.
+
+    A positive or negative claim is supported when every cited passage on its
+    side covers the aspect with that polarity. A mixed claim is supported when
+    on-aspect passages show both polarities. ADR-0019 cites one opposing
+    passage on purpose, which the judge's own ``claim_supported`` often marks
+    as ``partly``.
+    """
+
+    verdicts = row["judgment"]["passages"]
+    direction = row["sentiment_direction"]
+    if direction in ("positive", "negative"):
+        side = [
+            verdict
+            for cited, verdict in zip(row["cited_evidence"], verdicts, strict=True)
+            if cited["sentiment"] == direction
+        ]
+        return bool(side) and all(v["about_aspect"] and v["polarity"] == direction for v in side)
+    if direction == "conflicting":
+        polarities = {v["polarity"] for v in verdicts if v["about_aspect"]}
+        return {"positive", "negative"} <= polarities
+    return None
+
+
 def summarize_judgments(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """Aggregate audit results per stratum and overall (LLM agreement)."""
 
@@ -177,8 +216,16 @@ def summarize_judgments(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             for row in judged
             if row["judgment"]["claim_supported"] == "yes"
         )
+        derived = [derived_support(row) for row in judged]
+        derived_weight = sum(
+            row["recommendation_uses"] for row, ok in zip(judged, derived, strict=True) if ok
+        )
         return {
             "claims": len(items),
+            "claim_supported_derived": _share(bool(ok) for ok in derived),
+            "claim_supported_derived_weighted_by_recommendations": derived_weight / weight
+            if weight
+            else None,
             "judged": len(judged),
             "failed": len(items) - len(judged),
             "passages": len(passages),
@@ -194,8 +241,9 @@ def summarize_judgments(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         }
 
     strata = sorted({row["stratum"] for row in rows})
+    sampled = [row for row in rows if row["stratum"] != "top_exposure"]
     return {
-        "all": block(rows),
+        "all_direction_strata": block(sampled),
         **{f"stratum:{name}": block([r for r in rows if r["stratum"] == name]) for name in strata},
     }
 

@@ -88,3 +88,57 @@ def test_template_status_under_other_thresholds_and_cited_evidence() -> None:
     cold = explain_with_templates(templates, {a: 0.25 for a in ASPECTS}, aspect_in_score=False)
     assert cold["aspect_in_score"] is False
     assert all(claim["score_contribution"] == 0.0 for claim in cold["claims"])
+
+
+@pytest.mark.parametrize(
+    ("positive", "negative", "direction"),
+    [
+        (9, 1, "positive"),
+        (2, 1, "positive"),
+        (1, 1, "conflicting"),
+        (1, 2, "negative"),
+        (0, 5, "negative"),
+    ],
+)
+def test_claim_direction_follows_the_positive_share(positive, negative, direction) -> None:
+    rows = []
+    for index in range(positive + negative):
+        sentiment = "positive" if index < positive else "negative"
+        text = f"Review {index}: the story is {sentiment} here."
+        rows.append(
+            {
+                "review_id": f"r{index}",
+                "item_id": "i0",
+                "author_id": f"u{index}",
+                "timestamp": index,
+                "aspect": "story",
+                "sentiment": sentiment,
+                "confidence": 1.0,
+                "start": 0,
+                "end": len(text),
+                "evidence": text,
+                "source_text": text,
+            }
+        )
+    thresholds = ClaimThresholds(
+        min_distinct_authors=1, min_support=0.0, min_effective_sample_size=1.0
+    )
+    profiles = aggregate_evidence(rows, cutoff_timestamp=CUTOFF, items=["i0"], aspects=["story"])
+    claim = select_explanation(
+        "i0", profiles, rows, {"story": 1.0}, CUTOFF, thresholds=thresholds
+    ).claims[0]
+    template = build_claim_templates("i0", profiles, rows, ["story"], CUTOFF, thresholds)["story"]
+
+    assert claim.sentiment_direction == direction
+    assert claim.conflicting == (direction == "conflicting")
+    assert claim.positive_share == pytest.approx(positive / (positive + negative))
+    assert claim.claim and "%" in claim.claim
+    sides = [cited["sentiment"] for cited in template.cited_evidence]
+    if positive and negative:
+        assert set(sides) == {"positive", "negative"}
+    lead = (
+        "negative"
+        if direction == "negative" or (direction == "conflicting" and negative > positive)
+        else "positive"
+    )
+    assert sides[0] == lead

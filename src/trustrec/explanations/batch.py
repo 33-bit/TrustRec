@@ -39,6 +39,7 @@ class ClaimTemplate:
     evidence_count: int
     refusal_reason: str | None
     cited_evidence: tuple[dict[str, Any], ...] = field(default=())
+    positive_share: float | None = None
 
     def status_under(self, thresholds: ClaimThresholds) -> str:
         """Return the claim status the same evidence gets under other thresholds."""
@@ -68,27 +69,33 @@ class ClaimTemplate:
             "deviation": self.deviation,
             "evidence_count": self.evidence_count,
             "refusal_reason": self.refusal_reason,
+            "positive_share": self.positive_share,
             "cited_evidence": list(self.cited_evidence),
         }
 
 
 def _cited(evidence: Sequence[Any], direction: str) -> tuple[dict[str, Any], ...]:
-    """Pick up to three passages to show: those that match the claim direction first.
+    """Pick up to three passages to show.
 
-    A conflicting claim shows both positive and negative passages. Ties keep
-    the ``select_explanation`` order (confidence, then review ID).
+    A positive or negative claim shows two passages that match it and, when
+    one exists, one passage from the other side (ADR-0010, ADR-0019). A mixed
+    claim shows positive and negative passages. Ties keep the
+    ``select_explanation`` order (confidence, then review ID).
     """
 
+    positive = [ref for ref in evidence if ref.sentiment == "positive"]
+    negative = [ref for ref in evidence if ref.sentiment == "negative"]
     if direction == "conflicting":
-        wanted = ("positive", "negative")
-        picked: list[Any] = []
-        for sentiment in wanted:
-            picked.extend([ref for ref in evidence if ref.sentiment == sentiment][:2])
-        picked = picked[:DISPLAY_EVIDENCE]
+        # A mixed claim leads with whichever side has more passages.
+        direction = "negative" if len(negative) > len(positive) else "positive"
+    if direction == "negative":
+        picked: list[Any] = negative[:2] + positive[:1]
+    elif direction == "positive":
+        picked = positive[:2] + negative[:1]
     else:
-        matching = [ref for ref in evidence if ref.sentiment == direction]
-        rest = [ref for ref in evidence if ref.sentiment != direction]
-        picked = (matching + rest)[:DISPLAY_EVIDENCE]
+        picked = []
+    chosen = {id(ref) for ref in picked}
+    picked += [ref for ref in evidence if id(ref) not in chosen][: DISPLAY_EVIDENCE - len(picked)]
     return tuple(
         {
             "review_id": ref.review_id,
@@ -138,6 +145,7 @@ def build_claim_templates(
             evidence_count=len(refs),
             refusal_reason=claim.refusal_reason,
             cited_evidence=_cited(refs, claim.sentiment_direction),
+            positive_share=claim.positive_share,
         )
     return templates
 
@@ -173,6 +181,7 @@ def explain_with_templates(
                 "aspect": aspect,
                 "status": template.status,
                 "sentiment_direction": template.sentiment_direction,
+                "positive_share": template.positive_share,
                 "score_contribution": weight * template.deviation if aspect_in_score else 0.0,
                 "refusal_reason": template.refusal_reason,
             }

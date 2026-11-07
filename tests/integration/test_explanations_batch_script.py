@@ -125,6 +125,9 @@ def test_explanations_follow_the_saved_ranking_and_report_coverage(tmp_path: Pat
     assert sum(metrics["status_share"].values()) == pytest.approx(1.0)
     assert "correctness_pending" in metrics
     assert len(metrics["threshold_sensitivity"]) == 9
+    faith = metrics["faithfulness"]["counts"]["all"]
+    assert faith["not_applicable_aspect_not_in_score"] > 0
+    assert faith.get("tested", 0) > 0
     rows = [
         json.loads(line)
         for line in (tmp_path / "explanations" / "recommendations.jsonl").read_text().splitlines()
@@ -134,6 +137,8 @@ def test_explanations_follow_the_saved_ranking_and_report_coverage(tmp_path: Pat
     assert cold and warm
     assert all(row["score_parts"].keys() == {"recent_popularity"} for row in cold)
     assert all(c["score_contribution"] == 0.0 for row in cold for c in row["claims"])
+    tested = [row for row in warm if row["faithfulness"] and "faithful" in row["faithfulness"]]
+    assert tested and all("random_score_delta" in row["faithfulness"] for row in tested)
     assert all(row["score"] == pytest.approx(sum(row["score_parts"].values())) for row in warm)
     claims = [
         json.loads(line)

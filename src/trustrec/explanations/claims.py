@@ -106,6 +106,7 @@ class ClaimThresholds:
     min_distinct_authors: int = 5
     min_effective_sample_size: float = 2.0
     min_confidence: float = 0.5
+    direction_share: float = 2.0 / 3.0
 
     def __post_init__(self) -> None:
         if not math.isfinite(float(self.min_support)) or not 0.0 <= self.min_support <= 1.0:
@@ -123,6 +124,8 @@ class ClaimThresholds:
             raise ValueError("min_effective_sample_size must be positive")
         if not math.isfinite(float(self.min_confidence)) or not 0.0 <= self.min_confidence <= 1.0:
             raise ValueError("min_confidence must be between 0 and 1")
+        if not math.isfinite(float(self.direction_share)) or not 0.5 < self.direction_share <= 1.0:
+            raise ValueError("direction_share must be above 0.5 and at most 1")
 
 
 @dataclass(frozen=True)
@@ -203,10 +206,13 @@ class ExplanationClaim:
     score_contribution: float
     conflicting: bool
     refusal_reason: str | None = None
+    positive_share: float | None = None
 
     def __post_init__(self) -> None:
         _required_id(self.item_id, "item_id")
         _required_id(self.aspect, "aspect")
+        if self.positive_share is not None and not 0.0 <= self.positive_share <= 1.0:
+            raise ValueError("positive_share must be between 0 and 1")
         if self.sentiment_direction not in {"positive", "negative", "neutral", "conflicting"}:
             raise ValueError("invalid sentiment_direction")
         if self.status not in {"supported", "insufficient_support", "unavailable"}:
@@ -357,21 +363,34 @@ def _dominant_score_part(score_parts: Mapping[str, float]) -> str | None:
     return max(candidates, key=lambda key: (abs(candidates[key]), key))
 
 
-def _direction(profile: Any) -> tuple[str, bool]:
+def _direction(profile: Any, direction_share: float) -> tuple[str, bool, float | None]:
+    """Return the claim direction, whether it is mixed, and the positive share (ADR-0019).
+
+    The positive share is the positive mass over the positive plus negative
+    mass. A share of at least ``direction_share`` is positive, a share of at
+    most ``1 - direction_share`` is negative, and anything between is mixed.
+    Profiles without sentiment masses fall back to the score versus the prior.
+    """
+
     positive = float(_profile_value(profile, "positive_mass", 0.0))
     negative = float(_profile_value(profile, "negative_mass", 0.0))
-    conflicting = bool(_profile_value(profile, "conflicting", False)) or (
-        positive > 0.0 and negative > 0.0
-    )
-    if conflicting:
-        return "conflicting", True
+    polar = positive + negative
+    if polar > 0.0:
+        share = positive / polar
+        if share >= direction_share:
+            return "positive", False, share
+        if share <= 1.0 - direction_share:
+            return "negative", False, share
+        return "conflicting", True, share
+    if bool(_profile_value(profile, "conflicting", False)):
+        return "conflicting", True, None
     score = float(_profile_value(profile, "score", _profile_value(profile, "sentiment_score", 0.0)))
     prior = float(_profile_value(profile, "prior_score", 0.0))
     if score > prior:
-        return "positive", False
+        return "positive", False, None
     if score < prior:
-        return "negative", False
-    return "neutral", False
+        return "negative", False, None
+    return "neutral", False, None
 
 
 def _refusal_reasons(
@@ -397,6 +416,24 @@ def _refusal_reasons(
     if average_confidence < thresholds.min_confidence:
         reasons.append("confidence_below_threshold")
     return reasons
+
+
+def _claim_text(item_id: str, aspect: str, direction: str, share: float | None) -> str:
+    if share is None:
+        word = "mixed" if direction == "conflicting" else direction
+        return f"Item {item_id} has {word} evidence for {aspect}."
+    if direction == "conflicting":
+        return (
+            f"Item {item_id} has mixed evidence for {aspect}: {share:.0%} of opinions are positive."
+        )
+    if direction == "negative":
+        return (
+            f"Item {item_id} has negative evidence for {aspect}: "
+            f"{1.0 - share:.0%} of opinions are negative."
+        )
+    return (
+        f"Item {item_id} has positive evidence for {aspect}: {share:.0%} of opinions are positive."
+    )
 
 
 def select_explanation(
@@ -478,7 +515,7 @@ def select_explanation(
             average_confidence=average_confidence,
             thresholds=thresholds,
         )
-        direction, conflicting = _direction(profile)
+        direction, conflicting, positive_share = _direction(profile, thresholds.direction_share)
         weight = float(user_aspect_weights[aspect])
         prior = float(_profile_value(profile, "prior_score", 0.0))
         score = float(
@@ -488,10 +525,7 @@ def select_explanation(
         status = "supported" if not reasons else "insufficient_support"
         claim_text: str | None = None
         if status == "supported":
-            if direction == "conflicting":
-                claim_text = f"Item {item_id} has mixed evidence for {aspect}."
-            else:
-                claim_text = f"Item {item_id} has {direction} evidence for {aspect}."
+            claim_text = _claim_text(item_id, aspect, direction, positive_share)
         else:
             refusal_reasons.extend(f"{aspect}:{reason}" for reason in reasons)
         claims.append(
@@ -508,6 +542,7 @@ def select_explanation(
                 score_contribution=contribution,
                 conflicting=conflicting,
                 refusal_reason=": ".join(reasons) if reasons else None,
+                positive_share=positive_share,
             )
         )
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -62,6 +62,7 @@ class AspectModel:
     alpha: float
     evidence_rows: int
     profiled_items: int
+    aspect_priors: np.ndarray = field(default_factory=lambda: np.zeros(0))
 
     def user_weights(self, user_index: int | None) -> np.ndarray:
         counts = self.user_counts.get(user_index) if user_index is not None else None
@@ -145,6 +146,7 @@ def build_aspect_model(
         alpha=float(alpha),
         evidence_rows=len(rows),
         profiled_items=len(profiled),
+        aspect_priors=mu,
     )
 
 

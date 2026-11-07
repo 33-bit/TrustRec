@@ -1,8 +1,8 @@
 # Task: T7.1: Explanations for the ADR-0017 H0 top-10 on `t1`
 
-Status: first run done. The numbers are provisional: ADR-0010 forbids reporting
-coverage without the T7.3 correctness audit, and the claim direction rule
-needs a decision (see Findings).
+Status: second run done under [ADR-0019](../adr/0019-claim-direction-by-evidence-share.md).
+The numbers stay provisional, because ADR-0010 forbids reporting coverage
+without the T7.3 correctness audit. The first run is kept below as a record.
 
 ## Context
 
@@ -68,3 +68,35 @@ cores. Summary SHA-256: `4b6da623b97debaaab9ada6734c3597a8d5051e409cfd1fda995e43
   because recommended items are popular and have many reviews, and the claims
   say little. A direction rule based on the share of polar evidence is needed
   before T7.2 and T7.3. That rule changes claim semantics and needs an ADR.
+
+## Second run under ADR-0019 (2026-11-07)
+
+Claim direction now comes from the positive share of polar evidence. The run
+used the same command, settings, and checks. All checks pass. Summary SHA-256:
+`95055c49eaf983c6f99bc5714e1a736fce7b2ae044e401204e51ac083a0f06a7`.
+Recommendations file SHA-256:
+`abc9de12ccaa91f1b5ab789fef01a0898024062d1a0280dd5951d06daed51ddc`. The first
+run is in `artifacts/explanations/t1_h0_adr0017_k10_v1_any_conflict`.
+
+Coverage does not change (99.6% `supported`), because the direction rule does
+not change support.
+
+| Direction of supported claims | Aspect in the score | Cold-start fallback | All |
+| --- | --- | --- | --- |
+| Positive | 62,096 | 485,963 | 548,059 (89.0%) |
+| Mixed | 10,681 | 54,868 | 65,549 (10.6%) |
+| Negative | 1,587 | 377 | 1,964 (0.3%) |
+
+Two more findings:
+
+- **Gameplay dominates.** 596,262 of 615,572 supported claims (96.9%) are
+  about gameplay. The rest are performance 6,882, value 4,572, content and
+  replay 3,052, controls 1,645, story 1,421, graphics 957, and multiplayer 781.
+  Claim selection ranks aspects by the user weight times the item deviation.
+  Gameplay has the largest prior weight (it is the most mentioned aspect), so
+  it wins for almost every user. T7.3 should check whether this makes the
+  explanations repetitive.
+- Mixed claims now cite both sides. For example, `B000006RGR` graphics (41%
+  positive) cites "you've probably experienced better game graphics", "The
+  background is not so good", and "how good the game layouts and graphics
+  were."

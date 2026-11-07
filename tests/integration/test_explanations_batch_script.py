@@ -250,7 +250,7 @@ def test_judge_audits_a_stratified_sample_without_showing_labels(tmp_path: Path)
         workers=2,
     )
 
-    summary = result["summary"]["all"]
+    summary = result["summary"]["all_direction_strata"]
     assert result["traceability"]["passages"] == result["traceability"]["traceable"] > 0
     assert summary["judged"] == summary["claims"] == len(seen) > 0
     assert summary["claim_supported"]["yes"] == 1.0

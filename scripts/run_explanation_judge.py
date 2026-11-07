@@ -81,13 +81,18 @@ def run_judge(
     per_stratum: int = 100,
     seed: int = 7,
     workers: int = 8,
+    top_exposure: int = 0,
 ) -> dict[str, Any]:
     _assert_completed_manifest_is_absent(output_path)
     recommendations_path = explanations_dir / "recommendations.jsonl"
     claims_path = explanations_dir / "claims.jsonl"
     templates = {(row["item_id"], row["aspect"]): row for row in _jsonl(claims_path)}
     sample = sample_claims(
-        _jsonl(recommendations_path), templates, per_stratum=per_stratum, seed=seed
+        _jsonl(recommendations_path),
+        templates,
+        per_stratum=per_stratum,
+        seed=seed,
+        top_exposure=top_exposure,
     )
     trace = _traceability(manifest_path, sample)
     usage = {"prompt_tokens": 0, "completion_tokens": 0, "requests": 0, "failures": 0}
@@ -134,7 +139,12 @@ def run_judge(
             "recommendations": _sha256_file(recommendations_path),
             "claims": _sha256_file(claims_path),
         },
-        "sample": {"per_stratum": per_stratum, "seed": seed, "claims": len(rows)},
+        "sample": {
+            "per_stratum": per_stratum,
+            "top_exposure": top_exposure,
+            "seed": seed,
+            "claims": len(rows),
+        },
         "traceability": trace,
         "summary": summarize_judgments(rows),
         "usage": usage,
@@ -160,6 +170,9 @@ def main() -> None:
     parser.add_argument("--per-stratum", type=int, default=100)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument(
+        "--top-exposure", type=int, default=0, help="also judge the N most shown claims"
+    )
     args = parser.parse_args()
     api_key = os.environ.get(args.api_key_env)
     if not api_key:
@@ -178,8 +191,9 @@ def main() -> None:
         per_stratum=args.per_stratum,
         seed=args.seed,
         workers=args.workers,
+        top_exposure=args.top_exposure,
     )
-    print(json.dumps({"summary": result["summary"]["all"], "usage": result["usage"]}))
+    print(json.dumps({"summary": result["summary"], "usage": result["usage"]}))
 
 
 if __name__ == "__main__":

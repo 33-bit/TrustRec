@@ -11,7 +11,7 @@ the end.
 - Six of seven tables are byte-identical to [`t1_2_full_snapshot_manifest.json`](t1_2_full_snapshot_manifest.json): interactions, review texts, train, fit, validation, and test.
 - Row counts, cutoffs, and source chunk hashes also match.
 - `item_metadata.parquet` differs at the byte level. The original was built on macOS with Python 3.14; this rebuild ran on Linux with Python 3.13. Because the dataset hash includes this table, the rebuilt dataset hash is `7470fba0e8e05c32995a20e22a76cbc2a94a544328902c79fcf9d7be9208d888`. Ranking and evaluation do not read item metadata.
-- Code revision: `7b48685`. Protocol: `evaluation-v2`.
+- Code revision: `dd1d683` (`7b48685` before the 2026-11-07 author rewrite). Protocol: `evaluation-v2`.
 - Candidate set hash: `8a53d55a80b068d11339858818052be56782168dd39d9cd0f8beb3c0e80621f4`.
 - Metrics artifact SHA-256: `33f9bb81aae2590de844fdfc14f8268b4a1686f3a34aa0af5f567a3b5435d18d`. The metrics artifact and its manifest are in ignored `reports/generated/`. Ranking files are in ignored `artifacts/rankings/`.
 
@@ -147,7 +147,7 @@ gpt-6-luna labels ([LLM label dataset](../specs/llm-label-dataset.md)). The
 `t0` evidence has 3,278,623 rows from 1,373,677 reviews; the `t1` evidence has
 3,490,130 rows. Components are the tuned BPR MF (`b2_t0_best.npz` on `t0`,
 `b2_tuned_t1_seed07.npz` on `t1`) and PPR with damping 0.85 and 100
-iterations. Code revision: `b112306`.
+iterations. Code revision: `09090ff` (`b112306` before the 2026-11-07 author rewrite).
 
 ```bash
 PYTHONPATH=src python3 scripts/label_corpus_evidence.py --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json --cutoff t0 --workers 1 --labeler llm-cache --label-cache artifacts/curated/gpt-6-luna --output artifacts/evidence/t0_gpt-6-luna.jsonl

@@ -40,7 +40,9 @@ For each passage decide:
 
 Then decide `claim_supported`: do the passages, read together, support the claim's direction?
 Use `yes`, `partly` (some passages support it, others are off-aspect or opposite), or `no`.
-A positive claim may cite one opposing passage on purpose; that alone does not make it `no`.
+A positive or negative claim may cite one opposing passage on purpose; that alone does not
+make it `no`. A mixed claim is supported (`yes`) when the passages show both positive and
+negative opinions on the aspect.
 
 Return one JSON object:
 {{"passages": [{{"id": <id>, "about_aspect": <bool>, "polarity": <polarity>,

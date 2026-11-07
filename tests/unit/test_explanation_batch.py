@@ -214,3 +214,53 @@ def test_removing_positive_claim_evidence_lowers_the_score_more_than_random() ->
     )
     assert flat["score_delta"] == 0.0 and flat["faithful"] is False
     assert flat["moves_in_claimed_direction"] is None and flat["leaves_top_k"] is None
+
+
+def test_verified_display_keeps_only_on_aspect_passages_and_abstains_otherwise() -> None:
+    from trustrec.explanations.verify import parse_verdicts, passage_key, select_verified
+
+    def passage(review_id: str, sentiment: str) -> dict:
+        return {
+            "review_id": review_id,
+            "sentiment": sentiment,
+            "start": 0,
+            "end": 4,
+            "text": "text",
+        }
+
+    claim = {
+        "aspect": "story",
+        "sentiment_direction": "positive",
+        "candidate_evidence": [
+            passage("p1", "positive"),
+            passage("p2", "positive"),
+            passage("p3", "positive"),
+            passage("n1", "negative"),
+        ],
+    }
+
+    def verdict(about: bool, polarity: str) -> dict:
+        return {"about_aspect": about, "polarity": polarity, "about_product": True}
+
+    verdicts = {
+        passage_key("story", claim["candidate_evidence"][0]): verdict(False, "positive"),
+        passage_key("story", claim["candidate_evidence"][1]): verdict(True, "positive"),
+        passage_key("story", claim["candidate_evidence"][2]): verdict(True, "positive"),
+        passage_key("story", claim["candidate_evidence"][3]): verdict(True, "negative"),
+    }
+    shown, kept = select_verified(claim, verdicts)
+    assert kept and [p["review_id"] for p in shown] == ["p2", "p3", "n1"]
+
+    for key in list(verdicts)[1:3]:
+        verdicts[key] = verdict(True, "neutral")
+    shown, kept = select_verified(claim, verdicts)
+    assert not kept and [p["review_id"] for p in shown] == ["n1"]
+
+    mixed = {**claim, "sentiment_direction": "conflicting"}
+    verdicts[list(verdicts)[1]] = verdict(True, "positive")
+    assert select_verified(mixed, verdicts)[1] is True
+    verdicts[list(verdicts)[3]] = verdict(False, "negative")
+    assert select_verified(mixed, verdicts)[1] is False
+
+    with pytest.raises(ValueError, match="passage 1"):
+        parse_verdicts('{"passages": [{"id": 0, "about_aspect": true, "polarity": "positive"}]}', 2)

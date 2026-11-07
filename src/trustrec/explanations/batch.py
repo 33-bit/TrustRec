@@ -40,6 +40,7 @@ class ClaimTemplate:
     refusal_reason: str | None
     cited_evidence: tuple[dict[str, Any], ...] = field(default=())
     positive_share: float | None = None
+    candidate_evidence: tuple[dict[str, Any], ...] = field(default=())
 
     def status_under(self, thresholds: ClaimThresholds) -> str:
         """Return the claim status the same evidence gets under other thresholds."""
@@ -71,7 +72,51 @@ class ClaimTemplate:
             "refusal_reason": self.refusal_reason,
             "positive_share": self.positive_share,
             "cited_evidence": list(self.cited_evidence),
+            "candidate_evidence": list(self.candidate_evidence),
         }
+
+
+CLAIM_SIDE_CANDIDATES = 8
+OPPOSING_CANDIDATES = 4
+
+
+def claim_side(direction: str, positive_count: int, negative_count: int) -> str | None:
+    """Return the polarity a claim's main passages must have (ADR-0020)."""
+
+    if direction in ("positive", "negative"):
+        return direction
+    if direction == "conflicting":
+        return "negative" if negative_count > positive_count else "positive"
+    return None
+
+
+def _passage(ref: Any) -> dict[str, Any]:
+    return {
+        "review_id": ref.review_id,
+        "sentiment": ref.sentiment,
+        "start": ref.start_offset,
+        "end": ref.end_offset,
+        "text": ref.text,
+    }
+
+
+def _candidates(evidence: Sequence[Any], direction: str) -> tuple[dict[str, Any], ...]:
+    """Longest passages first: up to 8 on the claim side and 4 on the opposing side."""
+
+    positive = [ref for ref in evidence if ref.sentiment == "positive"]
+    negative = [ref for ref in evidence if ref.sentiment == "negative"]
+    side = claim_side(direction, len(positive), len(negative))
+    if side is None:
+        return ()
+    main, other = (positive, negative) if side == "positive" else (negative, positive)
+
+    def longest(refs: list[Any], count: int) -> list[Any]:
+        return sorted(refs, key=lambda ref: (-len(ref.text), ref.review_id))[:count]
+
+    return tuple(
+        _passage(ref)
+        for ref in longest(main, CLAIM_SIDE_CANDIDATES) + longest(other, OPPOSING_CANDIDATES)
+    )
 
 
 def _cited(evidence: Sequence[Any], direction: str) -> tuple[dict[str, Any], ...]:
@@ -146,6 +191,7 @@ def build_claim_templates(
             refusal_reason=claim.refusal_reason,
             cited_evidence=_cited(refs, claim.sentiment_direction),
             positive_share=claim.positive_share,
+            candidate_evidence=_candidates(refs, claim.sentiment_direction),
         )
     return templates
 

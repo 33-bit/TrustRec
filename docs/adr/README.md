@@ -2,6 +2,8 @@
 
 ADRs record decisions. Treat accepted ADRs as immutable. If a decision changes, add a new ADR and link the old and new records. Do not change old reasoning after an experiment uses it.
 
+ADR-0020 verifies each displayed passage with an LLM and abstains when no passage on the claim side passes.
+
 ADR-0019 sets claim direction from the share of positive versus negative evidence, so popular items are not all labeled mixed.
 
 ADR-0018 makes evidence-grounded explanation the primary contribution and treats accuracy as a guardrail against B5.

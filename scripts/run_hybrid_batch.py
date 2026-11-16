@@ -105,7 +105,31 @@ RECENCY_GRID = [
         for tau in (0.4, 0.6, 0.8)
     ),
 ]
-GRIDS = {"adr0009": DEFAULT_GRID, "adr0017": RECENCY_GRID}
+# ADR-0022: game-only view; graph-heavy weights and low or zero recency.
+GAME_GRID = [
+    *(
+        HybridConfig(
+            "h0_fixed_hybrid", mf_weight=m, graph_weight=g, recency_weight=r, aspect_weight=a
+        )
+        for m, g, r, a in (
+            (0.0, 0.8, 0.0, 0.2),
+            (0.1, 0.7, 0.0, 0.2),
+            (0.2, 0.6, 0.0, 0.2),
+            (0.0, 0.9, 0.0, 0.1),
+            (0.0, 0.6, 0.0, 0.4),
+            (0.0, 0.7, 0.1, 0.2),
+            (0.0, 0.6, 0.2, 0.2),
+            (0.1, 0.5, 0.2, 0.2),
+            (0.0, 0.4, 0.4, 0.2),
+        )
+    ),
+    *(
+        HybridConfig("t0_trustrec", kappa=5.0, g_max=g_max, rho=0.2, tau=tau)
+        for g_max in (0.1, 0.25, 0.5)
+        for tau in (0.0, 0.2, 0.4)
+    ),
+]
+GRIDS = {"adr0009": DEFAULT_GRID, "adr0017": RECENCY_GRID, "adr0022": GAME_GRID}
 
 
 def _read_evidence(path: Path) -> Iterator[dict[str, Any]]:

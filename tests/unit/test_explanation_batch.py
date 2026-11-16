@@ -264,3 +264,21 @@ def test_verified_display_keeps_only_on_aspect_passages_and_abstains_otherwise()
 
     with pytest.raises(ValueError, match="passage 1"):
         parse_verdicts('{"passages": [{"id": 0, "about_aspect": true, "polarity": "positive"}]}', 2)
+
+
+def test_item_scope_rules_follow_adr_0021() -> None:
+    from trustrec.data.item_scope import classify_item, classify_items
+
+    assert (
+        classify_item("PlayStation Plus: 12 Month Membership [Digital Code]", 100, 30)
+        == "store_credit"
+    )
+    assert classify_item("Xbox LIVE 1200 Microsoft Points for Call of Duty", 0, 0) == "store_credit"
+    assert classify_item("Roblox Digital Gift Code for 1,200 Robux", 50, 10) == "store_credit"
+    assert classify_item("Nintendo 2DS - Electric Blue", 10, 6) == "hardware_accessory"
+    assert classify_item("Nintendo 2DS - Electric Blue", 4, 4) == "game"
+    assert classify_item("Mario Kart 8 Deluxe – Booster Course Pass", 100, 5) == "game"
+    assert classify_items({"a": "Skyrim", "b": "Xbox $50 Gift Card"}, {"a": (10, 1)}) == {
+        "a": "game",
+        "b": "store_credit",
+    }

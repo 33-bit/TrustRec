@@ -427,3 +427,47 @@ Findings:
   better than reweighting graph for NDCG@10; a small Recall@10 gain", not as
   a confirmed improvement. The label source does not matter at this effect
   size.
+
+## Game-target slice (ADR-0021, 2026-11-16)
+
+[ADR-0021](../adr/0021-non-game-items-in-explanations.md) classifies 222
+items as store credit (gift cards, currency and points, memberships,
+subscriptions) and 1,015 as hardware or accessories. 59.3% of the H0 top-10
+recommendations on `t1` are store credit: the shared cold-start list has six
+store-credit items in its top 10. Among positive test targets, 16.4% are
+store credit and 4.8% hardware or accessories.
+
+As a secondary analysis, the evaluation is rerun with test targets on game
+items only. Candidate sets, histories, and rankings do not change, so slots
+spent on non-game items earn nothing. 47,307 users have a positive game
+target.
+
+```bash
+PYTHONPATH=src python3 scripts/classify_item_scope.py --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json --cutoff t1 --curated artifacts/curated/gpt-6-luna --output artifacts/scope/item_scope_t1.json
+PYTHONPATH=src python3 scripts/build_game_target_slice.py --snapshot-manifest data/manifests/video_games-full-d6c4efeb74aa.json --item-scope artifacts/scope/item_scope_t1.json --output-dir artifacts/slices/t1_game_targets --model b0_most_popular=artifacts/rankings/b0_t1.jsonl --model b3_ppr=artifacts/rankings/b3_t1.jsonl --model b5_recent_popularity=artifacts/rankings/b5_t1_w60.jsonl --model h0_fixed_hybrid=artifacts/rankings/h0_t1_adr0017.jsonl --model h0_no_aspect=artifacts/rankings/h0_no_aspect_t1_adr0017.jsonl --model t0_trustrec=artifacts/rankings/t0_t1_adr0017.jsonl
+```
+
+The metrics run is `t7-x-video-games-t1-game-targets`, metrics SHA-256
+`3988795278be30cf9fa3d0255154b0d1d288ca160614dfe8a6a3b0472d3a4575`.
+
+| Model | NDCG@10, game targets | Difference from B5 | NDCG@10, all targets |
+| --- | --- | --- | --- |
+| B3 PPR | 0.0139 | +0.0102 [+0.0094, +0.0111] | 0.0284 |
+| B0 most popular | 0.0124 | +0.0088 [+0.0080, +0.0096] | 0.0268 |
+| H0, ADR-0017 | 0.0043 | +0.0007 [+0.0005, +0.0008] | 0.1071 |
+| H0 without aspect | 0.0042 | +0.0005 [+0.0004, +0.0007] | 0.1070 |
+| T0, ADR-0017 | 0.0041 | +0.0004 [+0.0003, +0.0005] | 0.1068 |
+| B5 recent popularity | 0.0037 | | 0.1064 |
+
+Findings:
+
+- **The ranking reverses.** On game targets, B5 is the worst model and
+  B3 PPR the best. B5's lead on all targets comes from predicting repeat
+  purchases of gift cards and memberships, not from recommending games.
+- **The recency models are poor game recommenders.** The ADR-0017 hybrids
+  inherit B5's store-credit list for cold-start users, and so do badly on
+  games.
+- **The recency finding is narrower than stated.** The T6.4 statement
+  "recency dominates" holds for store credit, not for games.
+- **Report both views.** Accuracy reports must give both the all-target and
+  the game-target results, with the target classes named.

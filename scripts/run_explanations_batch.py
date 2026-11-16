@@ -38,6 +38,7 @@ from trustrec.recommenders.hybrid_batch import HybridConfig
 from trustrec.recommenders.matrix import MS_PER_DAY, top_k_order
 
 try:
+    from scripts.classify_item_scope import load_item_scope
     from scripts.run_hybrid_batch import _components
     from scripts.run_rankings_batch import (
         _assert_completed_manifest_is_absent,
@@ -48,6 +49,7 @@ try:
         evaluation_user_ids,
     )
 except ModuleNotFoundError:  # run as ``python scripts/run_explanations_batch.py``
+    from classify_item_scope import load_item_scope  # type: ignore[no-redef]
     from run_hybrid_batch import _components  # type: ignore[no-redef]
     from run_rankings_batch import (  # type: ignore[no-redef]
         _assert_completed_manifest_is_absent,
@@ -329,7 +331,17 @@ def summarize(rows: Sequence[dict[str, Any]], templates: dict[tuple[str, str], A
         )
         sensitivity.append({**grid, "supported_share": supported / len(rows)})
     statuses = Counter(row["status"] for row in rows)
+    non_game = Counter(
+        row["refusal_reason"].split(":", 1)[1]
+        for row in rows
+        if str(row.get("refusal_reason", "")).startswith("non_game_item:")
+    )
     return {
+        "non_game_recommendations": {
+            "total": sum(non_game.values()),
+            "share": sum(non_game.values()) / len(rows) if rows else 0.0,
+            **dict(sorted(non_game.items())),
+        },
         "correctness_pending": "ADR-0010: report coverage only with the T7.3 correctness audit",
         "recommendations": len(rows),
         "users": len(users),
@@ -367,10 +379,12 @@ def run_explanations(
     thresholds: ClaimThresholds | None = None,
     workers: int = 1,
     positive_threshold: float = 4.0,
+    item_scope_path: Path | None = None,
 ) -> dict[str, Any]:
     if config.model_id != "h0_fixed_hybrid":
         raise ValueError("T7.1 explains the ADR-0017 H0 only")
     thresholds = thresholds or ClaimThresholds()
+    non_game = load_item_scope(item_scope_path) if item_scope_path else {}
     summary_path = output_dir / "summary.json"
     _assert_completed_manifest_is_absent(summary_path)
     began = time.perf_counter()
@@ -473,12 +487,21 @@ def run_explanations(
                 for aspect in aspect_model.aspects
                 if (item_id, aspect) in templates
             }
-            explanation = explain_with_templates(
-                item_templates,
-                weights,
-                max_claims=max_claims,
-                aspect_in_score=user["aspect_in_score"],
-            )
+            if item_id in non_game:
+                # ADR-0021: no game-aspect claims for store credit or hardware.
+                explanation = {
+                    "status": "unavailable",
+                    "claims": [],
+                    "aspect_in_score": user["aspect_in_score"],
+                    "refusal_reason": f"non_game_item:{non_game[item_id]}",
+                }
+            else:
+                explanation = explain_with_templates(
+                    item_templates,
+                    weights,
+                    max_claims=max_claims,
+                    aspect_in_score=user["aspect_in_score"],
+                )
             popularity = int(matrix.popularity[matrix.item_index[item_id]])
             age_days = (cutoff_ms - first_ms[item_id]) / MS_PER_DAY
             row = {
@@ -524,6 +547,9 @@ def run_explanations(
         "thresholds": asdict(thresholds),
         "shrinkage_lambda": 5.0,
         "evidence_source": "curated LLM evidence (ADR-0018)",
+        "item_scope": None
+        if item_scope_path is None
+        else {"path": str(item_scope_path), "sha256": _sha256_file(item_scope_path)},
     }
     summary = {
         "schema_version": 1,
@@ -577,6 +603,9 @@ def main() -> None:
     parser.add_argument("--max-claims", type=int, default=1)
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--item-scope", type=Path, help="ADR-0021 scope file from classify_item_scope.py"
+    )
     args = parser.parse_args()
     summary = run_explanations(
         args.snapshot_manifest,
@@ -597,6 +626,7 @@ def main() -> None:
         k=args.k,
         max_claims=args.max_claims,
         workers=args.workers,
+        item_scope_path=args.item_scope,
     )
     metrics = summary["metrics"]
     print(json.dumps({key: metrics[key] for key in ("recommendations", "users", "status_share")}))

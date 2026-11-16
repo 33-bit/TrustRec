@@ -1,6 +1,6 @@
 # Task: T8.1: Reselect the explained recommender on the game-only view
 
-Status: `t0` tuning done; `t1` results below. Decision:
+Status: done. `t0` tuning, `t1` test, explanations, verification, and an independent audit. Decision:
 [ADR-0022](../adr/0022-game-only-recommendation-view.md).
 
 ## Game-only view
@@ -123,11 +123,51 @@ Without store credit, explanations are more varied. More aspects appear, and
 there are more trade-off (negative) and mixed claims. The faithfulness result
 is unchanged.
 
-**Verification is incomplete.** ADR-0020 verification of the 6,843 distinct
-displayed claims stopped when the DeepSeek account ran out of balance. 3,593
-claims are fully verified; they cover 89.5% of views. Their verdicts are
-cached. Rerun the same command after a top-up to finish:
+### Verified display passages (ADR-0020)
 
-```bash
-PYTHONPATH=src python3 scripts/verify_explanation_passages.py --explanations-dir artifacts/explanations/games_t1_h0_k10 --output-dir artifacts/explanations/games_t1_h0_k10_verified --cache artifacts/explanations/verifier_cache_deepseek-flash.jsonl --model deepseek-flash --reasoning-effort none --workers 8
-```
+Verification of all 6,843 distinct displayed claims finished after a
+DeepSeek top-up. The first run stopped at 3,593 claims when the balance ran
+out; the rerun resumed from the cache with 3,250 more requests (1.71M input
+and 0.93M output tokens). Verification summary SHA-256:
+`cea989e0e66414ecd7119da8f84c5c130926312cd1a0748744cfd8eb05076a91`.
+
+| | Value |
+| --- | --- |
+| Displayed claims kept | 6,649 of 6,843 (97.2%) |
+| Views kept | 470,832 of 471,200 (99.9%) |
+| Recommendations with a supported, verified claim | 99.5% |
+| Where the aspect is in the score | 97.0% of 62,120 |
+| Cold-start (descriptive only) | 99.9% of 410,950 |
+| Supported claims: positive / mixed / negative | 61.5% / 29.0% / 9.5% |
+| Aspects | gameplay 69.1%, content and replay 10.1%, value 9.6%, graphics 9.3%, others 1.9% |
+
+### Independent audit (`deepseek-v4-pro`)
+
+The judge is a different model from the verifier, with reasoning off,
+temperature 0, and prompt `t7.3-claim-judge-v1`. It judged 100 claims per
+direction plus the 30 most-shown claims: 330 requests, 135k input and 39k
+output tokens, no failures. Audit SHA-256:
+`6218831a154e567e2e09d116d891ce7de0877be32ac25bb537a2800fc8376865`.
+
+| Stratum | Aspect correct | About the product | Polarity agrees with label | Derived support |
+| --- | --- | --- | --- | --- |
+| Positive | 99.6% | 100% | 96.8% | 93.0% |
+| Negative | 96.8% | 100% | 94.7% | 91.0% |
+| Mixed | 98.6% | 100% | 93.6% | 93.0% |
+| Top 30 by exposure | 97.7% | 100% | 96.6% | 96.7% (90.1% weighted by exposure) |
+
+All 950 cited passages trace to their source text.
+
+### Findings
+
+- **The full TrustRec pipeline holds on games.** The explained recommender
+  beats B5 on the game-only view (+0.0009 NDCG@10). 99.5% of its top-10
+  recommendations carry a verified claim. An independent judge supports
+  92.3% of sampled claims and 90.1% of exposure-weighted top claims.
+- **Faithfulness and its limit.** Where the aspect term is in the score,
+  98.2% of claims are faithful. For the 87% of recommendations that go to
+  users without history, the claim describes the item but does not explain
+  why it was recommended. Reports must say so (ADR-0010).
+- **Accuracy contribution of aspects.** Aspect evidence still adds no
+  measurable accuracy (+0.00008, interval includes 0). Its value in this
+  system is explanation, not ranking.

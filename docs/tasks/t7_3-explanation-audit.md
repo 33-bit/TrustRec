@@ -141,3 +141,23 @@ Findings:
   of claims and 87.5% of exposure-weighted top claims. `deepseek-flash`
   judging its own verification gave 94.3% and 99.7%. Part of that gap is
   self-agreement; the rest of the gain holds up with an independent judge.
+
+## Coverage under ADR-0021 and ADR-0020 (2026-11-16)
+
+T7.1 was rerun with the ADR-0021 item scope
+(`--item-scope artifacts/scope/item_scope_t1.json`), and then verified as in
+ADR-0020. Every verdict came from the cache, so no new requests were sent.
+The ranking check and the profile check pass. Explanation summary SHA-256:
+`260b6fa099719f9e9f1e778de78966026783d553e6b0004b6a25ca423c44ce6d`.
+Verification summary SHA-256:
+`005b4a94abf4f578e5be016d85be6f87223c8201727eb2f58a6bf72e28eed3bf`.
+
+| Recommendations (`t1`, top-10) | Count | Supported (verified passages) |
+| --- | --- | --- |
+| All | 617,750 | 40.6% |
+| Non-game items (`unavailable`): store credit 365,838, hardware 499 | 366,337 (59.3%) | — |
+| Game items | 251,413 (40.7%) | 99.7% |
+| Game items where the aspect is in the score | 34,789 | 98.4% |
+| Game items for cold-start users (descriptive only) | 216,624 | 99.9% |
+
+Among displayed game claims, 2,203 of 2,250 keep a verified passage.

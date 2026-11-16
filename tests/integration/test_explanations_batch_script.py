@@ -353,3 +353,48 @@ def test_verification_writes_a_judgeable_folder_and_abstains_on_rejected_claims(
         tmp_path / "explanations", tmp_path / "verified-2", client=client, cache_path=cache
     )
     assert calls == [] and again["displayed_claims_kept"] == summary["displayed_claims_kept"]
+
+
+def test_non_game_items_get_no_aspect_claims(tmp_path: Path) -> None:
+    manifest, evidence = _snapshot(tmp_path)
+    ranking = tmp_path / "h0.jsonl"
+    run_hybrids(
+        manifest,
+        cutoff_name="t1",
+        evidence_path=evidence,
+        configs=[H0],
+        output_paths=[ranking],
+        k=10,
+        scorer_settings=SETTINGS,
+        **COMPONENTS,
+    )
+    top_item = json.loads(ranking.read_text().splitlines()[0])["ranked_item_ids"][0]
+    scope = tmp_path / "scope.json"
+    scope.write_text(json.dumps({"non_game_items": {top_item: "store_credit"}}))
+
+    summary = run_explanations(
+        manifest,
+        evidence_path=evidence,
+        ranking_path=ranking,
+        config=H0,
+        scorer_settings=SETTINGS,
+        output_dir=tmp_path / "explanations",
+        k=5,
+        thresholds=ClaimThresholds(min_distinct_authors=2),
+        item_scope_path=scope,
+        **COMPONENTS,
+    )
+
+    rows = [
+        json.loads(line)
+        for line in (tmp_path / "explanations" / "recommendations.jsonl").read_text().splitlines()
+    ]
+    flagged = [row for row in rows if row["item_id"] == top_item]
+    assert flagged and all(
+        row["status"] == "unavailable"
+        and row["claims"] == []
+        and row["refusal_reason"] == "non_game_item:store_credit"
+        for row in flagged
+    )
+    assert summary["metrics"]["non_game_recommendations"]["store_credit"] == len(flagged)
+    assert summary["configuration"]["item_scope"]["sha256"]

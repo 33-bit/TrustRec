@@ -112,3 +112,32 @@ Audit SHA-256:
   and judged them. Part of the improvement may be the model agreeing with
   itself. A human spot check, or a judge from another model family, is
   needed before this result is reported as an improvement.
+
+## Independent audit with `deepseek-v4-pro` (2026-11-16)
+
+The verifier and the first judge were both `deepseek-flash`. To test for
+self-agreement, `deepseek-v4-pro` judged the same samples (same seed and
+strata) before and after verification. It used reasoning off, temperature 0,
+and prompt `t7.3-claim-judge-v1`. Pro is a different model, but from the same
+vendor; a human check remains the strongest test.
+
+| Judge `deepseek-v4-pro` | Before verification | After verification |
+| --- | --- | --- |
+| Passage aspect correct (direction strata) | 87.1% | 98.1% |
+| Polarity agrees with label | 82.1% | 94.5% |
+| Derived support per claim (direction strata) | 75.2% | 90.5% |
+| Derived support, top-30 claims | 66.7% | 86.7% |
+| Derived support weighted by exposure (top 30) | 71.1% | 87.5% |
+
+Result files: `reports/generated/t7-3-explanation-judge-deepseek-v4-pro-unverified.json`
+and `...-verified.json`. The two runs used 662k input and 78k output tokens.
+
+Findings:
+
+- **Before verification, the judges agree.** The independent judge scores
+  the unverified explanations about as `deepseek-flash` did (75.2% versus
+  74.8% per claim).
+- **The gain is real but smaller.** After verification, pro supports 90.5%
+  of claims and 87.5% of exposure-weighted top claims. `deepseek-flash`
+  judging its own verification gave 94.3% and 99.7%. Part of that gap is
+  self-agreement; the rest of the gain holds up with an independent judge.

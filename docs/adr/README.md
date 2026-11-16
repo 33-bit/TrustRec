@@ -2,6 +2,8 @@
 
 ADRs record decisions. Treat accepted ADRs as immutable. If a decision changes, add a new ADR and link the old and new records. Do not change old reasoning after an experiment uses it.
 
+ADR-0022 adds a game-only view of the snapshot and reselects the explained recommender on it.
+
 ADR-0021 keeps non-game items (store credit, hardware, accessories) in ranking but gives them no game-aspect claims.
 
 ADR-0020 verifies each displayed passage with an LLM and abstains when no passage on the claim side passes.

@@ -99,3 +99,35 @@ Findings:
 - **Aspect evidence adds no measurable accuracy** on this view either. The
   explained recommender is therefore chosen for its accuracy, and its aspect
   term is what lets it carry explanations.
+
+## Explanations for the selected H0 (`t1`, top-10)
+
+```bash
+PYTHONPATH=src python3 scripts/run_explanations_batch.py --snapshot-manifest data/processed/video_games/video_games-full-d6c4efeb74aa-games/snapshot.json --evidence artifacts/evidence/t1_gpt-6-luna.jsonl --ranking artifacts/rankings/games/h0_t1.jsonl --h0 '{"mf_weight": 0.0, "graph_weight": 0.4, "recency_weight": 0.4, "aspect_weight": 0.2}' --mf-model artifacts/models/games/b2_t1.npz --graph-params '{"damping": 0.85, "max_iter": 100}' --normalization minmax --cold-start fallback --cold-window-days 30 --recency-window-days 30 --k 10 --max-claims 1 --workers 4 --output-dir artifacts/explanations/games_t1_h0_k10
+```
+
+Summary SHA-256:
+`17197fcc6e9a5a77eec29d65ec73a8a9ad0d04bce584ad5073bda5f257f6f937`. The
+ranking check and the profile check pass. The run explains 4,951 distinct
+items. Before verification, 99.6% of recommendations carry a supported claim.
+
+| | Full catalog (T7.1, second run) | Game-only view |
+| --- | --- | --- |
+| Supported claims: positive / mixed / negative | 89.0% / 10.6% / 0.3% | 61.5% / 29.0% / 9.5% |
+| Share about gameplay | 96.9% | 69.0% |
+| Next aspects | performance 1.1%, value 0.7% | content and replay 10.1%, value 9.5%, graphics 9.3% |
+| Faithful (aspect in score) | 98.3% of 74,364 | 98.2% of 60,607 |
+| Leaves top-10 after cited / random removal | 14.1% / 0.9% | 14.4% / 1.3% |
+
+Without store credit, explanations are more varied. More aspects appear, and
+there are more trade-off (negative) and mixed claims. The faithfulness result
+is unchanged.
+
+**Verification is incomplete.** ADR-0020 verification of the 6,843 distinct
+displayed claims stopped when the DeepSeek account ran out of balance. 3,593
+claims are fully verified; they cover 89.5% of views. Their verdicts are
+cached. Rerun the same command after a top-up to finish:
+
+```bash
+PYTHONPATH=src python3 scripts/verify_explanation_passages.py --explanations-dir artifacts/explanations/games_t1_h0_k10 --output-dir artifacts/explanations/games_t1_h0_k10_verified --cache artifacts/explanations/verifier_cache_deepseek-flash.jsonl --model deepseek-flash --reasoning-effort none --workers 8
+```

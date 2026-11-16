@@ -256,3 +256,100 @@ def test_judge_audits_a_stratified_sample_without_showing_labels(tmp_path: Path)
     assert summary["claim_supported"]["yes"] == 1.0
     assert all("sentiment" not in passage for message in seen for passage in message["passages"])
     assert result["judge"]["prompt_version"] == "t7.3-claim-judge-v1"
+
+
+def test_verification_writes_a_judgeable_folder_and_abstains_on_rejected_claims(
+    tmp_path: Path,
+) -> None:
+    from scripts.verify_explanation_passages import verify_explanations
+
+    from trustrec.explanations.verify import VERIFY_PROMPT
+    from trustrec.nlp.llm_labeler import ChatClient
+
+    manifest, evidence = _snapshot(tmp_path)
+    ranking = tmp_path / "h0.jsonl"
+    run_hybrids(
+        manifest,
+        cutoff_name="t1",
+        evidence_path=evidence,
+        configs=[H0],
+        output_paths=[ranking],
+        k=10,
+        scorer_settings=SETTINGS,
+        **COMPONENTS,
+    )
+    run_explanations(
+        manifest,
+        evidence_path=evidence,
+        ranking_path=ranking,
+        config=H0,
+        scorer_settings=SETTINGS,
+        output_dir=tmp_path / "explanations",
+        k=5,
+        thresholds=ClaimThresholds(min_distinct_authors=2),
+        **COMPONENTS,
+    )
+    calls = []
+
+    def post(*args, **kwargs):
+        message = json.loads(kwargs["json"]["messages"][1]["content"])
+        calls.append(message)
+        reject = message["aspect"] == "graphics"
+        answer = {
+            "passages": [
+                {
+                    "id": p["id"],
+                    "about_aspect": not reject,
+                    "polarity": "positive" if "great" in p["text"] else "negative",
+                    "about_product": True,
+                }
+                for p in message["passages"]
+            ]
+        }
+
+        class Response:
+            status_code = 200
+
+            def json(self):
+                return {"choices": [{"message": {"content": json.dumps(answer)}}], "usage": {}}
+
+        return Response()
+
+    client = ChatClient(
+        api_key="k",
+        model_id="verifier",
+        post=post,
+        reasoning_effort=None,
+        system_prompt=VERIFY_PROMPT,
+    )
+    cache = tmp_path / "verdicts.jsonl"
+    summary = verify_explanations(
+        tmp_path / "explanations", tmp_path / "verified", client=client, cache_path=cache, workers=2
+    )
+
+    assert summary["displayed_claims"] == len(calls) > 0
+    assert summary["displayed_claims_kept"] < summary["displayed_claims"]
+    claims = [
+        json.loads(line)
+        for line in (tmp_path / "verified" / "claims.jsonl").read_text().splitlines()
+    ]
+    for claim in claims:
+        if claim.get("display_verified") and claim["aspect"] == "graphics":
+            assert claim["status"] == "insufficient_support"
+            assert claim["refusal_reason"] == "no_verified_passage"
+    rows = [
+        json.loads(line)
+        for line in (tmp_path / "verified" / "recommendations.jsonl").read_text().splitlines()
+    ]
+    assert all(
+        c["status"] != "supported"
+        for row in rows
+        for c in row["claims"]
+        if c["aspect"] == "graphics"
+    )
+
+    calls.clear()
+    again = verify_explanations(
+        tmp_path / "explanations", tmp_path / "verified-2", client=client, cache_path=cache
+    )
+    assert calls == [] and again["displayed_claims_kept"] == summary["displayed_claims_kept"]
